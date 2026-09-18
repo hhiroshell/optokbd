@@ -6,6 +6,14 @@ fp-info-cache
 _autosave-*
 *.rpt
 
+# FreeCAD/CAD autosave and lock files
+*.FCBak
+#*
+
+# Exported 3D model files (generated from .FCStd sources)
+*.step
+*.3mf
+
 # JLC PCB plugin / ordering outputs
 jlcpcb/
 
