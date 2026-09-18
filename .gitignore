@@ -8,7 +8,7 @@ _autosave-*
 
 # FreeCAD/CAD autosave and lock files
 *.FCBak
-#*
+\#*
 
 # Exported 3D model files (generated from .FCStd sources)
 *.step
