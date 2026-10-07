@@ -19,3 +19,10 @@ jlcpcb/
 
 # Editor backup files
 *~
+
+# Python / uv
+.venv/
+__pycache__/
+
+# build123d outputs
+case/out/

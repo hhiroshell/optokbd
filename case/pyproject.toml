@@ -1,0 +1,16 @@
+[project]
+name = "optokbd-case"
+version = "0.2.0"
+description = "Case of the Opto keyboard, modeled with build123d"
+requires-python = ">=3.11,<3.15"
+dependencies = [
+    "build123d>=0.13",
+]
+
+[dependency-groups]
+dev = [
+    "ocp-vscode",
+]
+
+[tool.uv]
+package = false
