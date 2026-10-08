@@ -1,4 +1,5 @@
 # トップケース（左手）。v0.1.0/top.FCStd の Body を build123d で書き直したもの。
+# - 完全無線化に合わせて、v0.1.0 にあった Pro Micro の切り欠き・コネクタのポケット・TRRS の穴は廃止した
 # - 座標は bottom.py と同じ。z = 0 が下端、z = 23 が上面
 # - FreeCAD 版はミラーした右手用も同じファイルに置いていたが、ここでは左手だけを作る
 # - 実行: uv run python top.py [--show]   （out/ に STEP / STL / 3MF を書き出す。--show で OCP CAD Viewer に表示）
@@ -68,18 +69,6 @@ NUT_POCKETS = [
     [(-67.7149, -31.0351), (-65.4534, -31.9100), (-63.5882, -30.4077), (-62.8572, -28.3974), (-67.3028, -26.6770), (-68.0791, -28.6961)],
 ]
 
-# Pro Micro の切り欠き（奥の右）: x の範囲と、下側の円弧
-PROMICRO_X = (49.6763, 65.6763)
-PROMICRO_ARC = ("arc", (57.6763, 59.9137), 30.0)
-# Pro Micro のコネクタのポケット: (x0, x1, y0, y1)、高さ
-CONNECTOR = (51.1763, 67.025, 26.0, 34.0)
-CONNECTOR_TOP = 20.0
-
-# TRRS ジャックの穴（右の側面）: y の範囲、直線部の上端、上の円弧
-TRRS_Y = (-19.5, -11.5)
-TRRS_TOP = 18.5
-TRRS_ARC = ("arc", (-15.5, 11.0), 8.5)  # YZ 平面上 (y, z)
-
 # 下端の切り欠き（YZ 平面上 (y, z)）。手前は直線、奥は円弧で、両端が高さ 6 まで上がる
 WALL_CUT_FRONT = (-58.0, 6.0)
 WALL_CUT_LOW_Y = -0.9138
@@ -99,15 +88,9 @@ def gasket_pockets():
 def corner_points():
     """外周の角（R1 のフィレットをかける縦の稜線の位置）。"""
     outer = plan(OUTER_GROW, OUTER_SIDE_GROW)
-    back = shifted(BACK_ARC, OUTER_GROW)
     # 手前中央の水平な辺と親指の下の円弧の両端は、ほぼ接線つながりなので除く
     smooth = [shifted(FRONT, -OUTER_GROW), shifted(THUMB_ARC, -OUTER_GROW)]
-    pts = [Vector(v.X, v.Y) for v in outer.vertices() if not any(on_curve(v, c) for c in smooth)]
-    # Pro Micro の切り欠きの両側と、TRRS の穴の両側
-    _, (cx, cy), r = back
-    pts += [Vector(x, cy + (r * r - (x - cx) ** 2) ** 0.5) for x in PROMICRO_X]
-    pts += [Vector(plan_curves(OUTER_GROW, OUTER_SIDE_GROW)[0][1][0], y) for y in TRRS_Y]
-    return pts
+    return [Vector(v.X, v.Y) for v in outer.vertices() if not any(on_curve(v, c) for c in smooth)]
 
 
 def reflex_corners(path):
@@ -140,20 +123,6 @@ def build():
         case -= Pos(0, 0, NUT_Z[0]) * extrude(Face(Wire(Polyline(*pts, close=True).edges())), NUT_Z[1] - NUT_Z[0])
     for x, y in SCREWS:
         case -= Pos(x, y, -1) * Solid.make_cylinder(HOLE_R, HOLE_TOP + 1)
-
-    # Pro Micro の切り欠き（上から貫通）とコネクタのポケット
-    x0, x1 = PROMICRO_X
-    ya = PROMICRO_ARC[1][1] - (PROMICRO_ARC[2] ** 2 - (x0 - PROMICRO_ARC[1][0]) ** 2) ** 0.5
-    notch = path_face([((x0, ya), PROMICRO_ARC), ((x1, ya), None), ((x1, FAR), None), ((x0, FAR), None)])
-    case -= Pos(0, 0, -1) * extrude(notch, HEIGHT + 2)
-    x0, x1, y0, y1 = CONNECTOR
-    case -= Pos((x0 + x1) / 2, (y0 + y1) / 2, -1) * extrude(Rectangle(x1 - x0, y1 - y0), CONNECTOR_TOP + 1)
-
-    # TRRS ジャックの穴。外壁の内面（x = 右の辺 + INNER_SIDE_GROW）から外へ抜く
-    y0, y1 = TRRS_Y
-    inner_x = plan_curves(INNER_GROW, INNER_SIDE_GROW)[0][1][0]
-    trrs = path_face([((y0, -1), None), ((y1, -1), None), ((y1, TRRS_TOP), TRRS_ARC), ((y0, TRRS_TOP), None)])
-    case -= Plane.YZ.offset(inner_x) * extrude(trrs, OUTER_SIDE_GROW - INNER_SIDE_GROW + 1)
 
     # 下端の切り欠き。x 方向に貫通させる
     cut = path_face([
