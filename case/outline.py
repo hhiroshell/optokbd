@@ -1,47 +1,13 @@
-# 左手ケースの平面形の共通部分。ボトムケースの外形を基準にして、各部の輪郭はそこからのオフセットで作る。
-# - 座標: XY がケースの平面（y は奥が正）。単位は mm
+# 平面形を作るための 2D の道具。
 # - 辺（曲線）は直線 ("line", 点, 向き) か円弧 ("arc", 中心, 半径) で表す
+# - 輪郭は「辺の並び」で表し、頂点は隣り合う辺の交点として計算する。オフセットした輪郭も同じ辺の並びから作れる
 import math
 
-from build123d import Face, Line, Pos, ThreePointArc, Vector, Wire, Circle
-
-# ボトムケースの外形の辺
-HALF_W = 67.825
-RIGHT = ("line", (HALF_W, 0.0), (0.0, 1.0))
-LEFT = ("line", (-HALF_W, 0.0), (0.0, 1.0))
-BACK_ARC = ("arc", (0.0, -266.243), 308.896)        # 奥の辺
-LEFT_ARC = ("arc", (7.3122, 159.531), 203.5)        # 手前左の辺
-FRONT = ("line", (0.0, -42.6534), (1.0, 0.0))       # 手前中央の水平な辺
-THUMB_ARC = ("arc", (-6.2286, -222.398), 179.745)   # 親指の下の辺（凹）
-THUMB_LINE = ("line", (48.6409, -51.2326), (6.9706, -2.2649))  # 親指の下の辺に続く直線
-SLANT = ("line", (67.8250, -27.7716), (-8.7269, -26.8587))     # 右下の斜めの辺
-
-# M2 ネジの位置
-SCREWS = [
-    (45.2441, 38.5128),
-    (-10.6426, 41.6691),
-    (-65.8622, 34.7310),
-    (-65.8264, -29.5140),
-    (-10.5735, -41.8534),
-    (57.6020, -53.3030),
-]
-
-# ボスを除いた外形: (辺, 外側へ広げるときの shifted() の符号, 左右の辺か, 始点の目安)。
-# 始点は前の辺との交点のうち、目安に近い方
-PLAN = [
-    (RIGHT, -1, True, (67.825, -27.7716)),
-    (BACK_ARC, 1, False, (67.825, 35.1148)),
-    (LEFT, 1, True, (-67.825, 35.1148)),
-    (LEFT_ARC, 1, False, (-67.825, -29.5897)),
-    (FRONT, -1, False, (-15.7901, -42.6534)),
-    (THUMB_ARC, -1, False, (-5.8494, -42.6534)),
-    (THUMB_LINE, -1, False, (48.6409, -51.2326)),
-    (SLANT, 1, True, (58.4, -53.9)),
-]
+from build123d import Face, Line, ThreePointArc, Vector, Wire
 
 
 def intersect(c1, c2, near):
-    """2 つの辺の交点のうち、near に近い方。"""
+    """2 つの辺の交点のうち、near に近い方。接している（交わらない）ときは接点。"""
     near = Vector(*near)
     if c1[0] == "arc" and c2[0] == "line":
         c1, c2 = c2, c1
@@ -53,13 +19,13 @@ def intersect(c1, c2, near):
         p, d = Vector(*c1[1]), Vector(*c1[2]).normalized()
         c, r = Vector(*c2[1]), c2[2]
         b = (p - c).dot(d)
-        s = math.sqrt(b * b - ((p - c).dot(p - c) - r * r))
+        s = math.sqrt(max(0.0, b * b - ((p - c).dot(p - c) - r * r)))
         pts = [p + d * (-b + s), p + d * (-b - s)]
     else:
         c, r, k, q = Vector(*c1[1]), c1[2], Vector(*c2[1]), c2[2]
         dist = (k - c).length
         a = (r * r - q * q + dist * dist) / (2 * dist)
-        h = math.sqrt(r * r - a * a)
+        h = math.sqrt(max(0.0, r * r - a * a))
         u = (k - c).normalized()
         m, n = c + u * a, Vector(-u.Y, u.X)
         pts = [m + n * h, m - n * h]
@@ -89,7 +55,7 @@ def edges_face(curves, pts):
 
 
 def chain_face(chain):
-    """[(辺, 始点の目安), ...] から閉じた Face を作る。"""
+    """[(辺, 始点の目安), ...] から閉じた Face を作る。始点は前の辺との交点のうち、目安に近い方。"""
     pts = [intersect(chain[i - 1][0], chain[i][0], chain[i][1]) for i in range(len(chain))]
     return edges_face([c for c, _ in chain], pts)
 
@@ -108,36 +74,10 @@ def shifted(curve, d):
     return ("line", (px - dy * k, py + dx * k), (dx, dy))
 
 
-def plan_curves(grow=0.0, side_grow=None):
-    """ボトムケースの外形（ボスなし）の辺を grow だけ外へずらしたもの。
-    左右の辺と右下の斜めの辺は side_grow だけずらす（省略時は grow）。"""
-    side_grow = grow if side_grow is None else side_grow
-    return [shifted(c, s * (side_grow if side else grow)) for c, s, side, _ in PLAN]
-
-
-def plan(grow=0.0, side_grow=None):
-    """plan_curves() の辺で囲まれた Face。"""
-    curves = plan_curves(grow, side_grow)
-    hints = []
-    for i, (_, _, _, hint) in enumerate(PLAN):
-        # 直線と交わる角は、目安をずらした直線の上へ移す（親指の下の円弧と直線はほぼ接していて、
-        # 交点が 1 mm ほどの間隔で 2 つあるので、目安が離れていると選び方がぶれる）
-        for c in (curves[i - 1], curves[i]):
-            if c[0] == "line":
-                hint = project(hint, c)
-        hints.append(hint)
-    return chain_face(list(zip(curves, hints)))
-
-
 def project(p, line):
     """点 p から直線へ下ろした垂線の足。"""
     p, q, d = Vector(*p), Vector(*line[1]), Vector(*line[2]).normalized()
     return q + d * (p - q).dot(d)
-
-
-def with_bosses(face, r):
-    """ネジ位置に半径 r の円を足す。"""
-    return face + [Pos(x, y) * Circle(r) for x, y in SCREWS]
 
 
 def on_curve(p, curve, tol=1e-3):
@@ -147,3 +87,58 @@ def on_curve(p, curve, tol=1e-3):
         return abs(math.hypot(p.X - cx, p.Y - cy) - r) < tol
     (px, py), (dx, dy) = curve[1:]
     return abs(((p.X - px) * dy - (p.Y - py) * dx) / math.hypot(dx, dy)) < tol
+
+
+def tangent(curve, p):
+    """辺の p における向き（単位ベクトル、向きの正負は問わない）。"""
+    if curve[0] == "line":
+        return Vector(*curve[2]).normalized()
+    c = Vector(*curve[1])
+    r = Vector(p.X, p.Y) - c
+    return Vector(-r.Y, r.X).normalized()
+
+
+# ---- 輪郭（plan）: [(辺, 外側へずらすときの shifted() の符号, 辺の種類, 始点の目安), ...] ----
+
+def plan_curves(plan, grow):
+    """輪郭の各辺を外へずらす。grow は {辺の種類: ずらす量}。"""
+    return [shifted(c, s * grow[kind]) for c, s, kind, _ in plan]
+
+
+def plan_points(plan, grow):
+    """ずらした輪郭の頂点。"""
+    curves = plan_curves(plan, grow)
+    pts = []
+    for i, (_, _, _, hint) in enumerate(plan):
+        # 直線と交わる角は、目安をずらした直線の上へ移す（ほぼ接している円弧と直線で、交点の選び方がぶれないように）
+        for c in (curves[i - 1], curves[i]):
+            if c[0] == "line":
+                hint = project(hint, c)
+        pts.append(intersect(curves[i - 1], curves[i], hint))
+    return pts
+
+
+def plan_face(plan, grow):
+    """ずらした輪郭の Face。"""
+    return edges_face(plan_curves(plan, grow), plan_points(plan, grow))
+
+
+def plan_corners(plan, grow, min_angle=1.0):
+    """ずらした輪郭の頂点のうち、辺が接線つながりでない（角になっている）もの。"""
+    curves = plan_curves(plan, grow)
+    out = []
+    for i, p in enumerate(plan_points(plan, grow)):
+        t0, t1 = tangent(curves[i - 1], p), tangent(curves[i], p)
+        if math.degrees(math.asin(min(1.0, abs(t0.cross(t1).Z)))) > min_angle:
+            out.append(p)
+    return out
+
+
+def outward_normal(plan, i, p):
+    """輪郭の i 番目の辺の、点 p における外向きの単位法線。"""
+    curve, s, _, _ = plan[i]
+    if curve[0] == "arc":
+        r = (Vector(p.X, p.Y) - Vector(*curve[1])).normalized()
+        return r * s
+    dx, dy = curve[2]
+    return Vector(-dy, dx).normalized() * s
