@@ -104,6 +104,11 @@ def build():
     edges = [e for f in hole_faces for e in f.edges() if e.geom_type not in (GeomType.LINE, GeomType.CIRCLE)]
     if edges:
         case = case.fillet(0.5, edges)
+
+    # コントローラーの収納部（底蓋の開口、基板の真上の床の穴、USB-C の通り道、ツメとラッチの受け）
+    import bay  # bay は bottom の寸法を使うので、ここで読み込む
+    for cut in bay.case_cuts():
+        case -= cut
     return case
 
 
