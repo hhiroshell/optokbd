@@ -105,11 +105,11 @@ def build():
     if edges:
         case = case.fillet(0.5, edges)
 
-    # コントローラーの収納部（底蓋の開口、基板の真上の床の穴、USB-C の通り道、ツメとラッチの受け）
+    # コントローラーの収納部（底蓋の開口、USB-C のプラグの穴とケーブルのくぼみ、底蓋の四隅のネジのボス）
     import bay  # bay は bottom の寸法を使うので、ここで読み込む
     for cut in bay.case_cuts():
         case -= cut
-    return case
+    return bay.add_screw_bosses(case)
 
 
 if __name__ == "__main__":
