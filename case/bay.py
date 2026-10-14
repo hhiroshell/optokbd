@@ -87,23 +87,31 @@ BATTERY = (31.0, 21.0, 6.0)   # 電池（幅 x、奥行き v、厚さ）。実�
 BATTERY_GAP = 2.7             # 電池の右端と基板の左端の間（リード線を通す）
 BATTERY_FRONT_Y = -30.5       # 電池の手前の端（平面の y）
 BATTERY_FRAME = (1.0, 2.0, 0.4)  # 電池の枠（厚さ、高さ、すき間）
+BATTERY_LEAD_GAP = 8.0        # 電池の枠の基板側の辺の切り欠き: 奥の角から手前への長さ（電池のリード線を通す）
+BATTERY_PRY_GAP = 6.0         # 電池の枠の奥の辺の中央の切り欠きの幅（電池を外すときにスパッジャーを差し込む）
 
 # 底蓋のリブ: 左右の辺に沿った壁と、手前の辺の電池側の壁。底蓋に垂直に立ち、上端は底蓋に平行。
 # 外側の面は底蓋の端と同じで、収納部の壁に沿って、底蓋を押し込むときのガイドになる。電池や基板を取り付けやすいよう
-# 低めにする。四隅のネジのボスの所では切る。
+# 低めにする。四隅は、ボトムケースのボスが底蓋の厚肉の上面から上を占めるので、リブは角まで伸ばしたうえで、ボスに近づく所で
+# 45° の斜面で厚肉の高さまで下げ、ネジ穴のある角の台（厚肉）とひとつながりにする。
 # 手前の辺の基板側は、基板の手前の端が底蓋の手前の端に近いので壁を作らない（基板が台座で底蓋を補強する）。
 # 電池の枠とリブの間は埋めて、枠の高さまでひとつながりにする
 # 底蓋の手前の端と、収納部の手前の壁も、底蓋に垂直な面にする（左右の辺はもともと底蓋に垂直、奥の辺は鉛直のまま）
 RIB_T = 1.2                   # 厚さ
 RIB_H = 4.0                   # 高さ（底蓋の内面から）
 RIB_CHAMFER = 0.4             # リブの上端の角の面取り
-RIB_BOSS_CLEAR = 0.3          # リブの端とボトムケースのボスのすき間
+# 奥のリブ: 奥の辺（円弧）に沿った壁。基板の横幅（+ RIB_BOARD_CLEAR）の範囲は、基板の下面より低い高さ
+# （底蓋の外面から RIB_LOW_W）にして、基板の奥の縁、XIAO、USB-C の口に当たらないようにする。高さの境目は 45° の斜面
+RIB_BOARD_CLEAR = 0.5         # 低くする範囲: 基板の左右の端から外へ
+RIB_LOW_W = LID_T + STANDOFF - 0.1  # 低くする所の上端（底蓋の外面から。基板の下面の 0.1 下）
+RIB_BOSS_CLEAR = 0.3          # リブと電池の枠の斜面の下端と、ボトムケースのボスのすき間
 
 # 四隅のネジ: 底蓋の各辺から LID_SCREW_INSET 内側。ボトムケースのボスは床の上面の高さから底蓋の内面まで下ろし、
 # 隣り合う 2 つの壁につなげる。ボスの下面が底蓋の内面に当たる位置で、底蓋が底面と面一になる（4 か所とも）。
 # 右の 2 か所は基板の角の切り欠きに入れ、左の 2 か所は電池の左横に置く（底蓋の左端は、左のボスの位置で決まる）
 LID_SCREW_INSET = 3.2         # ネジの中心: 底蓋の端から内側へ（座ぐりの縁に 1 mm 残す）
-LID_PAD = (6.4, 1.6)          # 底蓋の内側のネジまわりの厚肉（直径、底蓋の内面からの高さ）。ネジ頭の座ぐりのため
+LID_PAD = (6.4, 1.6)          # 底蓋の内側のネジまわりの厚肉（直径、底蓋の内面からの高さ）。ネジ頭の座ぐりのため。
+                              # 平面形はボトムケースのボスと同じ（円と、隣り合う 2 つの辺までの四角）で、角を埋める
 SCREW_HEAD = (4.4, 2.0)       # ネジ頭の座ぐり（直径、深さ）。M2 の六角穴付きボルト（Ø3.8 × 2.0）の頭が沈む
 SCREW_LEN = 6.0               # ネジの長さ（M2 × 6）。先端は底蓋の外面から SCREW_HEAD[1] + SCREW_LEN。
                               # 手前のボスの高さ（床の上面まで）で決まる
@@ -114,7 +122,7 @@ SCREW_BOSS_D = 6.4            # ボトムケースのボス
 NUT_AF = 4.2                  # 二面幅（M2 ナット 4.0 mm + 0.2。トップケースのナットのポケットと同じ）
 NUT_T = 1.8                   # 溝の厚さ（M2 ナット 1.6 mm + 0.2）
 NUT_TIP = 0.8                 # ネジの先端がナットの上から出る長さ
-BOSS_CLEAR = 0.5              # ボスと電池（枠）のすき間
+BOSS_CLEAR = 0.5              # ボスと電池のすき間
 BOARD_NOTCH_CLEAR = 0.8       # ボスと基板の切り欠きのすき間（基板は底蓋に平行で高い所ほど奥へずれる分も見込む）
 
 # 基板の位置: USB-C とケーブルのくぼみの位置は、ケースの左右の中央から右へ 18.55（以前の電池と基板の配置で決めた位置）。
@@ -270,29 +278,64 @@ def local_cylinder(x, v, w0, w1, d):
     return FRAME * Pos(x, v, w0) * Solid.make_cylinder(d / 2, w1 - w0)
 
 
-def boss_keepout(x, v, sx, sv, clear):
-    """ボトムケースのボスとその壁へのつなぎの範囲を clear だけ広げた、底蓋の側で避ける領域（FRAME の直方体）。
-    ボスは底蓋の角にあるので、角の外側へは十分遠くまで含める。"""
-    r = SCREW_BOSS_D / 2 + clear
-    xa, xb = (x - r, 1000) if sx > 0 else (-1000, x + r)
-    va, vb = (v - r, 1000) if sv > 0 else (-1000, v + r)
-    return local_box(xa, xb, va, vb, -100, 100)
+def corner_footprint(x, v, sx, sv, r):
+    """角のネジのまわりの平面形（FRAME の x, v）: 半径 r の円と、そこから隣り合う 2 つの壁（収納部の壁から 1 mm 外）までの
+    長方形。ボトムケースのボス（r = SCREW_BOSS_D / 2）と、底蓋の角の厚肉に使う。"""
+    if sv > 0:
+        v_wall = v_of(back_y(x, LID_BACK - LID_GAP)) + 1.0   # 底蓋の外面の高さで、奥の壁から 1 mm 奥
+    else:
+        v_wall = v_of(LID_FRONT_Y) - LID_GAP - 1.0
+    x_wall = (LID_X[1] + LID_GAP + 1.0) if sx > 0 else (LID_X[0] - LID_GAP - 1.0)
+    footprint = Pos(x, v) * Circle(r)
+    footprint += Pos(x, (v + v_wall) / 2) * Rectangle(2 * r, abs(v_wall - v))
+    footprint += Pos((x + x_wall) / 2, v) * Rectangle(abs(x_wall - x), 2 * r)
+    footprint += Pos((x + x_wall) / 2, (v + v_wall) / 2) * Rectangle(abs(x_wall - x), abs(v_wall - v))
+    return footprint
+
+
+def boss_flare(x, v, sx, sv, clear):
+    """底蓋の側で、角のボスのまわりを避ける形（FRAME の座標）: ボスの平面形を clear だけ広げ、厚肉の上面から上へ、
+    上ほど 45° で広がるように押し出したもの。リブや電池の枠はこれで削ると、ボスに近づく所で 45° の斜面になって
+    厚肉の高さまで下がり、角の台とひとつながりになる。"""
+    face = corner_footprint(x, v, sx, sv, SCREW_BOSS_D / 2 + clear)
+    return FRAME * Pos(0, 0, LID_T + LID_PAD[1]) * extrude(face, 10, taper=-45)
+
+
+def back_rib_band():
+    """奥のリブの平面形の範囲（鉛直な柱）: 底蓋の奥の端から RIB_T 内側まで。基板の横幅の範囲は RIB_LOW_W より上を
+    45° の斜面で削る。"""
+    xa, xb = LID_X[0] - 2, LID_X[1] + 2
+    inset = LID_BACK + RIB_T
+    inner = path_face([
+        ((xa, LID_FRONT_Y - 10), None),
+        ((xb, LID_FRONT_Y - 10), None),
+        ((xb, back_y(xb, inset)), back_arc(inset)),
+        ((xa, back_y(xa, inset)), None),
+    ])
+    band = lid_region() - prism(inner)
+    lo, hi = BOARD_CX - BOARD_W / 2 - RIB_BOARD_CLEAR, BOARD_CX + BOARD_W / 2 + RIB_BOARD_CLEAR
+    low = FRAME * Pos((lo + hi) / 2, 0, RIB_LOW_W) * extrude(Rectangle(hi - lo, 400), 10, taper=-45)
+    return band - low
 
 
 def ribs():
-    """底蓋のリブ（底蓋に垂直に立ち、上端は底蓋に平行。四隅のボスの所で切り、上端の角を面取り）。"""
+    """底蓋のリブ（底蓋に垂直に立ち、上端は底蓋に平行。四隅のボスに近づく所は 45° の斜面で厚肉の高さまで下げ、
+    上端の角を面取り）。左右、手前（電池の側）、奥の辺に沿う。"""
     x0, x1 = LID_X
     vf = v_of(LID_FRONT_Y)
     bands = local_box(x0 - 1, x0 + RIB_T, vf - 1, 1000, -100, 100)
     bands += local_box(x1 - RIB_T, x1 + 1, vf - 1, 1000, -100, 100)
     bands += local_box(x0 - 1, rib_x_front(), vf - 1, vf + RIB_T, -100, 100)
-    for x, v, sx, sv in lid_screws_local():
-        bands -= boss_keepout(x, v, sx, sv, RIB_BOSS_CLEAR)
-    rib = bands & lid_region() & slab(LID_T - 0.1, LID_T + RIB_H)
+    bands = (bands & lid_region()) + back_rib_band()
+    for s in lid_screws_local():
+        bands -= boss_flare(*s, RIB_BOSS_CLEAR)
+    top = LID_T + RIB_H
+    rib = bands & slab(LID_T - 0.1, top)
     out = []
     for solid in rib.solids():
-        top_face = max(solid.faces(), key=lambda f: FRAME.to_local_coords(f.center()).Z)
-        out.append(solid.chamfer(RIB_CHAMFER, None, top_face.edges()))
+        # 上端の面（いちばん高い、底蓋に平行な面）の縁を面取りする
+        tops = [f for f in solid.faces() if abs(FRAME.to_local_coords(f.center()).Z - top) < 1e-3]
+        out.append(solid.chamfer(RIB_CHAMFER, None, [e for f in tops for e in f.edges()]))
     return out
 
 
@@ -318,23 +361,29 @@ def lid():
         body += local_cylinder(x, v, LID_T - 0.1, LID_T + STANDOFF, BOSS_D)
         body -= local_cylinder(x, v, LID_T + STANDOFF - PILOT_DEPTH, LID_T + STANDOFF + 0.1, PILOT_D)
 
-    # 電池の枠（基板側は J2 へのリード線のために開ける）。左と手前は、リブとの間を埋めて底蓋の端までつなげる。
-    # 左のボスの所は切る
+    # 電池の枠。左と手前は、リブとの間を埋めて底蓋の端までつなげる。左のボスに近づく所は、リブと同じく 45° の斜面で
+    # 厚肉の高さまで下げ、角の台とつなげる。切り欠きは 2 つ:
+    # - 基板側の辺の奥の角から BATTERY_LEAD_GAP（電池のリード線を奥の角から基板の側へ出す）
+    # - 奥の辺の中央に幅 BATTERY_PRY_GAP（電池を外すときにスパッジャーを差し込む）
     t, h, c = BATTERY_FRAME
     outer = battery_outline(c + t).bounding_box()
+    inner = battery_outline(c).bounding_box()
     x0, y0 = LID_X[0] - 1, LID_FRONT_Y - 1
     block = Pos((x0 + outer.max.X) / 2, (y0 + outer.max.Y) / 2) * Rectangle(outer.max.X - x0, outer.max.Y - y0)
     ring = block - battery_outline(c)
-    yc = battery_outline().center().Y
-    gap = Pos(BATTERY_X0 + BATTERY[0] + c + t / 2, yc) * Rectangle(t + 2, 8)
-    frame = prism(ring - gap) & slab(LID_T - 0.1, LID_T + h) & lid_region()
-    for x, v, sx, sv in lid_screws_local():
-        frame -= boss_keepout(x, v, sx, sv, BOSS_CLEAR)
+    ya, yb = inner.max.Y - BATTERY_LEAD_GAP, outer.max.Y + 1
+    lead_gap = Pos((inner.max.X + outer.max.X + 1) / 2, (ya + yb) / 2) * Rectangle(outer.max.X + 1 - inner.max.X, yb - ya)
+    xc = battery_outline().center().X
+    pry_gap = Pos(xc, (inner.max.Y - 1 + yb) / 2) * Rectangle(BATTERY_PRY_GAP, yb - inner.max.Y + 1)
+    frame = prism(ring - lead_gap - pry_gap) & slab(LID_T - 0.1, LID_T + h) & lid_region()
+    for s in lid_screws_local():
+        frame -= boss_flare(*s, RIB_BOSS_CLEAR)
     body += frame
 
-    # 四隅のネジ: 内側の厚肉（底蓋の外形で切る）、ネジ頭の座ぐり、通し穴
-    for x, v, _, _ in lid_screws_local():
-        body += local_cylinder(x, v, LID_T - 0.1, LID_T + LID_PAD[1], LID_PAD[0]) & lid_region()
+    # 四隅のネジ: 角を埋める厚肉（ボスと同じ平面形を底蓋の外形で切る）、ネジ頭の座ぐり、通し穴
+    for x, v, sx, sv in lid_screws_local():
+        pad = FRAME * Pos(0, 0, LID_T - 0.1) * extrude(corner_footprint(x, v, sx, sv, LID_PAD[0] / 2), LID_PAD[1] + 0.1)
+        body += pad & lid_region()
         body -= local_cylinder(x, v, -1, SCREW_HEAD[1], SCREW_HEAD[0])
         body -= local_cylinder(x, v, -1, LID_T + LID_PAD[1] + 1, SCREW_CLEAR_D)
     return body
@@ -359,17 +408,8 @@ def case_cuts():
 def boss_solid(x, v, sx, sv):
     """ボトムケースの角のボス: 円と、そこから隣り合う 2 つの壁へ入り込む長方形（FRAME の w の向きの柱）。
     下面は底蓋の厚肉の上面、上端は床の上面の高さ。奥の壁は鉛直なので、上ほど深く入る。"""
-    r = SCREW_BOSS_D / 2
-    if sv > 0:
-        v_wall = v_of(back_y(x, LID_BACK - LID_GAP)) + 1.0   # 底蓋の外面の高さで、奥の壁から 1 mm 奥
-    else:
-        v_wall = v_of(LID_FRONT_Y) - LID_GAP - 1.0
-    x_wall = (LID_X[1] + LID_GAP + 1.0) if sx > 0 else (LID_X[0] - LID_GAP - 1.0)
-    footprint = Pos(x, v) * Circle(r)
-    footprint += Pos(x, (v + v_wall) / 2) * Rectangle(2 * r, abs(v_wall - v))
-    footprint += Pos((x + x_wall) / 2, v) * Rectangle(abs(x_wall - x), 2 * r)
-    footprint += Pos((x + x_wall) / 2, (v + v_wall) / 2) * Rectangle(abs(x_wall - x), abs(v_wall - v))
     w0 = LID_T + LID_PAD[1]
+    footprint = corner_footprint(x, v, sx, sv, SCREW_BOSS_D / 2)
     return (FRAME * Pos(0, 0, w0) * extrude(footprint, 30)) & prism(Rectangle(1000, 1000), -30, B.FLOOR_Z)
 
 
