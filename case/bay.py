@@ -8,14 +8,14 @@
 # - 収納部の上には天井を作らず、床を抜いてボトムケースの内側の空間とつなげる（ボトムケースは傾いた底面を下にして
 #   印刷するので、天井は印刷の向きで斜めの張り出しになり、サポートで支えるときれいに仕上がらない）
 # - 実行: uv run python bay.py [--show]   （out/ に底蓋、ネジまわりのテストピース、合わせ確認用のボトムケースの切り出し、
-#   仮のコントローラー基板と XIAO のモック、基板の外形 DXF を書き出す）
+#   基板の外形 DXF を書き出す。仮のコントローラー基板と XIAO のモックは controller_test_board.py）
 import math
 import sys
 from pathlib import Path
 
 from build123d import (
-    Box, Circle, Compound, Face, Line, Mesher, Plane, Polyline, Pos, Rectangle, Solid, ThreePointArc, Wire,
-    export_step, export_stl, extrude,
+    Box, Circle, Compound, Face, GeomType, Line, Mesher, Plane, Polyline, Pos, Rectangle, Solid, ThreePointArc, Wire,
+    export_step, export_stl, extrude, fillet,
 )
 
 import bottom as B
@@ -71,6 +71,7 @@ STANDOFF = 1.5                # 台座の高さ（スルーホール部品の足
 BOARD_HOLES = [(7.0, 7.0), (31.0, 7.0), (8.0, 26.0), (30.0, 26.0)]  # 基板の左上（奥の端の中央の高さ）からの位置。
                               # 左右対称。四隅の切り欠きと底蓋のネジのボスを避け、奥の 2 つはネジ頭が XIAO に当たらない位置
 BOARD_HOLE_D = 2.2            # 基板の M2 の穴
+BOARD_CORNER_R = 1.0          # 基板の外形の角の丸め（出た角も入った角も）
 BOSS_D, PILOT_D, PILOT_DEPTH = 5.0, 1.6, 2.4  # 台座、M2 タッピングネジ（M2 × 3）の下穴
 
 XIAO_W, XIAO_D, STACK_H = 17.8, 21.0, 5.5     # XIAO（基板の下面から XIAO と USB-C の上端まで STACK_H）
@@ -441,7 +442,7 @@ def controller_wall_clearance():
 def dummies():
     """プレビュー用: コントローラー基板、XIAO、USB-C、電池。"""
     w_b = LID_T + STANDOFF
-    board = prism(board_outline()) & slab(w_b, w_b + BOARD_T)
+    board = FRAME * Pos(BOARD_CX, board_v_top(), w_b) * extrude(board_face_local(), BOARD_T)
     for x, v in board_holes_local():
         board -= local_cylinder(x, v, w_b - 1, w_b + BOARD_T + 1, BOARD_HOLE_D)
     vt = board_v_top()
@@ -502,25 +503,38 @@ def board_local_segments():
     return segs
 
 
+def board_face_local():
+    """コントローラー基板の外形（基板の面の座標）。角を BOARD_CORNER_R で丸めたもの。"""
+    edges = [Line(a, b) if m is None else ThreePointArc(a, m, b) for a, m, b in board_local_segments()]
+    return fillet(Face(Wire(edges)).vertices(), BOARD_CORNER_R).faces()[0]
+
+
+def board_outline_segments():
+    """角を丸めたコントローラー基板の外形の辺の並び（基板の面の座標）: [(始点, 円弧の中点 または None, 終点)]。
+    DXF と KiCad の Edge.Cuts に書き出す用。"""
+    out = []
+    for e in board_face_local().outer_wire().edges():
+        a, b = ((e @ 0).X, (e @ 0).Y), ((e @ 1).X, (e @ 1).Y)
+        m = None if e.geom_type == GeomType.LINE else ((e @ 0.5).X, (e @ 0.5).Y)
+        out.append((a, m, b))
+    return out
+
+
 def board_holes_board():
     """コントローラー基板の M2 の穴の中心（基板の面の座標）。"""
     vt = board_v_top()
     return [(x - BOARD_CX, v - vt) for x, v in board_holes_local()]
 
 
-def controller_mock():
-    """組み付け確認用の仮のコントローラー基板（外形と穴は DXF と同じ）と、XIAO と USB-C のモック。
-    どちらも基板の面の座標で、下面を z = 0 に置く（印刷の向き）。XIAO のモックは、XIAO の基板と奥の端の小さな部品の
-    高さまでの箱に USB-C を載せたもの（USB-C は XIAO の奥の端から USB_OVERHANG 張り出す）。"""
-    edges = [Line(a, b) if m is None else ThreePointArc(a, m, b) for a, m, b in board_local_segments()]
-    board = extrude(Face(Wire(edges)), BOARD_T, dir=(0, 0, 1))
-    for x, y in board_holes_board():
-        board -= Pos(x, y, -1) * Solid.make_cylinder(BOARD_HOLE_D / 2, BOARD_T + 2)
+def xiao_mock():
+    """組み付け確認用の XIAO と USB-C のモック: XIAO の基板と奥の端の小さな部品の高さまでの箱に USB-C を載せたもの
+    （USB-C は XIAO の奥の端から USB_OVERHANG 張り出す）。基板の面の座標で、下面を z = 0 に置く（印刷の向き）。
+    仮のコントローラー基板は controller_test_board.py（KiCad の穴つき）で作る。"""
     h = XIAO_PCB_T + XIAO_EDGE_PARTS
     xiao = Pos(0, -XIAO_D / 2, h / 2) * Box(XIAO_W, XIAO_D, h)
     usb_len = 7.0 + USB_OVERHANG
     xiao += Pos(0, USB_OVERHANG - usb_len / 2, XIAO_PCB_T + USB_H / 2) * Box(USB_W, usb_len, USB_H)
-    return board, xiao
+    return xiao
 
 
 def export_board_dxf(path, hole_d=BOARD_HOLE_D):
@@ -529,7 +543,7 @@ def export_board_dxf(path, hole_d=BOARD_HOLE_D):
     doc = ezdxf.new("R2010")
     doc.units = ezdxf.units.MM
     msp = doc.modelspace()
-    for a, m, b in board_local_segments():
+    for a, m, b in board_outline_segments():
         if m is None:
             msp.add_line(a, b)
             continue
@@ -568,8 +582,6 @@ if __name__ == "__main__":
     export([("screw-test-case", case_piece), ("screw-test-lid", Pos(0, -25, 0) * lid_piece)], out / "screw-test-l")
     export([("bay-fit-test-case", fit_test(case))], out / "bay-fit-test-l")
     export_board_dxf(out / "controller-board-l.dxf")
-    board_mock, xiao_mock = controller_mock()
-    export([("controller-board-mock", board_mock), ("xiao-mock", Pos(0, 25, 0) * xiao_mock)], out / "controller-mock")
     print(f"lid volume = {lid_part.volume:.2f} mm^3, solids = {len(lid_part.solids())}")
     if "--show" in sys.argv:
         from ocp_vscode import show
