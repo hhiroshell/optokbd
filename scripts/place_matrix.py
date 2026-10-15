@@ -134,7 +134,10 @@ else:
     x, y, r = key_pose(*J1_KEY)
     ox, oy = local_to_board(*J1_OFFSET, r)
     flip_to_back(j1)
-    place(j1, x + ox, y + oy, r + J1_ANGLE)
+    # 裏面のフットプリントは「上下反転 + 180°」として持たれ、裏返した直後の角度は 180°。角度を r + 180 にすると、
+    # 表の向き（差し込み口が手前）を左右に裏返しただけの向きになる（ピン 1 は表のときと反対の端）。
+    # r にすると上下反転だけが残り、差し込み口が奥を向く
+    place(j1, x + ox, y + oy, r + J1_ANGLE + 180.0)
     print(f"J1: {j1.GetReference()} を R{J1_KEY[0]}C{J1_KEY[1]} の下端に配置")
 
 pcbnew.Refresh()
