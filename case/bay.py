@@ -104,6 +104,13 @@ J1_GROOVE_W = 20.0            # 溝の幅（x）。J1（幅約 14）+ 両側 3
 J1_GROOVE_DEPTH = 8.0         # 溝の奥行き: 収納部の手前の壁から手前へ（プラグのはみ出しとケーブルの曲げ。要実測）
 J1_GROOVE_R = 1.5             # 溝の手前の角の丸め
 
+# 底蓋を外すときに爪を掛ける切り欠き: 収納部の手前の壁の下端（底蓋の手前の端の前）を、底面から上へ 45° の斜面で削る。
+# 爪を斜面に沿って差し込み、底蓋の手前の端の内面に掛けて引き下ろす。底蓋の内面の上が基板の下面まで空いている所
+# （手前のリブがなく、J1 の溝の外）に置く: 手前のリブの右端と J1 の溝の左端の間の中央。斜面は、壁の面に基板の下面の
+# 0.1 下の高さで達する（印刷の向きでは下向きの 45° の斜面なので、サポートは要らない）
+NAIL_W = 8.0                  # 切り欠きの幅（x）
+NAIL_DEPTH = LID_T + STANDOFF - 0.1  # 底面での奥行き（収納部の手前の壁から手前へ）= 斜面が壁の面に達する高さ
+
 BATTERY = (31.0, 21.0, 6.0)   # 電池（幅 x、奥行き v、厚さ）。実測値
 BATTERY_GAP = 2.7             # 電池の右端と基板の左端の間（リード線を通す）
 BATTERY_FRONT_Y = -30.5       # 電池の手前の端（平面の y）
@@ -448,7 +455,28 @@ def case_cuts():
     cuts.append(local_box(BOARD_CX - PLUG_W / 2, BOARD_CX + PLUG_W / 2, mouth + PLUG_GAP, mouth + 20,
                           wc - PLUG_H / 2, wc + PLUG_H / 2))
     cuts.append(j1_groove())
+    cuts.append(nail_notch())
     return cuts
+
+
+def nail_x():
+    """爪を掛ける切り欠きの中心の x: 手前のリブの右端と J1 の溝の左端の間の中央。"""
+    return (rib_x_front() + BOARD_CX - J1_GROOVE_W / 2) / 2
+
+
+def nail_notch():
+    """爪を掛ける切り欠き: 底面から上へ 45° の斜面で収納部の手前の壁を削る三角柱（FRAME の座標、x 方向に押し出す）。
+    斜面は底面で壁から NAIL_DEPTH 手前、壁の面で w = NAIL_DEPTH。奥は収納部の中まで伸ばす。"""
+    vf = v_of(LID_FRONT_Y) - LID_GAP
+    x0, d = nail_x() - NAIL_W / 2, NAIL_DEPTH
+    pts = [(x0, vf - d - 1, -1), (x0, vf + 1, -1), (x0, vf + 1, d + 1)]
+    face = Face(Wire(Polyline(*pts, close=True).edges()))
+    return FRAME * extrude(face, NAIL_W, dir=(1, 0, 0))
+
+
+# 爪の切り欠きが、手前のリブ（電池の枠）の右端と J1 の溝から 1 mm 以上離れていること（爪が底蓋の内面に届く所）
+assert nail_x() - NAIL_W / 2 >= rib_x_front() + 1.0
+assert nail_x() + NAIL_W / 2 <= BOARD_CX - J1_GROOVE_W / 2 - 1.0
 
 
 def j1_groove():
