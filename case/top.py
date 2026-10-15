@@ -18,7 +18,9 @@ import plate as P
 from outline import on_curve, path_face, plan_corners, plan_curves
 
 HEIGHT = 23.0
-CAVITY_TOP = 19.0       # 内側の空間（ボトムケースの床の上）の高さ。ここから上面までがベゼル
+CAVITY_TOP = 18.0       # 内側の空間（ボトムケースの床の上）の高さ。ここから上面までがベゼル（厚さ 5.0）。
+                        # プレートの上面（17.5、gasket.py）から PLATE_TOP_CLEAR 上
+PLATE_TOP_CLEAR = 0.5   # ベゼルの下面とプレートの上面のすき間（gasket.py で確かめる）
 INNER_TOP = 11.0        # 外壁の内面（ボトムケースを囲む部分）の高さ。ここが段差になり、ボトムケースの下げた壁の上端が当たる
 SLOT_TOP = 20.0         # ガスケットのポケットの高さ
 INNER_BOSS_R = 2.4      # ボトムケースのボスを逃がす円

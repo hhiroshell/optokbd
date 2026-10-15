@@ -26,6 +26,9 @@ LOWER_Z = PILLAR_TOP
 PLATE_Z = LOWER_Z + THICKNESS
 UPPER_Z = PLATE_Z + PLATE_T
 
+# トップケースのベゼルの下面が、プレートの上面から T.PLATE_TOP_CLEAR 上にあること
+assert abs(T.CAVITY_TOP - UPPER_Z - T.PLATE_TOP_CLEAR) < 1e-6
+
 
 def footprint(tab):
     """ガスケットの平面形: タブのうち、ケースの内面 + INNER_CLEARANCE から先端 - INSET までを、両側から INSET 削ったもの。"""
