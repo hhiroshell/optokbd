@@ -64,11 +64,12 @@ def back_arc(inset):
 # ---- 寸法 ----
 LID_T = 1.6                   # 底蓋の厚さ
 LID_GAP = 0.2                 # 底蓋とボトムケースのすき間
-LID_BACK = 5.8                # 底蓋の奥の端: 奥の外形から内側へ（面取りの斜面と、底面との境目の R0.5 から離す）
+LID_BACK = 6.6                # 底蓋の奥の端: 奥の外形から内側へ（面取りの斜面と、底面との境目の R0.5 から離す。
+                              # 開口の奥の端から境目まで約 0.9。チルト角を大きくすると底面が低くなり、境目が内側へ寄る）
 LID_FRONT_Y = -34.5           # 底蓋の手前の端（平面の y）
 
 BOARD_W, BOARD_D, BOARD_T = 38.0, 29.0, 1.0   # コントローラー基板
-BOARD_BACK = 6.5              # 基板の奥の端（XIAO の奥の端）: 奥の外形から内側へ。基板と XIAO の奥の縁と収納部の奥の壁の
+BOARD_BACK = 7.4              # 基板の奥の端（XIAO の奥の端）: 奥の外形から内側へ。基板と XIAO の奥の縁と収納部の奥の壁の
                               # すき間が CONTROLLER_CLEAR 以上になる位置（基板は底蓋に平行なので上ほど奥へずれる）。
                               # USB-C の口は壁の穴に入る
 CONTROLLER_CLEAR = 0.2        # 基板、XIAO の奥の縁と、収納部の奥の壁のすき間
@@ -163,6 +164,21 @@ _left_screw_x = BATTERY_X0 - BOSS_CLEAR - SCREW_BOSS_D / 2
 LID_X = (_left_screw_x - LID_SCREW_INSET, BOARD_CX + BOARD_W / 2 + LID_MARGIN)  # 底蓋の左右の端
 # USB-C（XIAO）はケースの奥の中央のネジ（x = LID_CX）を避ける必要がある: XIAO の左端とネジの穴の間に 1 mm 以上
 assert BOARD_CX - XIAO_W / 2 - (LID_CX + L.BOSS_R) >= 1.0
+
+
+def bevel_edge_gap():
+    """収納部の開口の奥の端（平面）と、奥の面取りの斜面と底面の境目の、いちばん近い所の距離。境目は奥の外形から
+    BEVEL_W - z × BEVEL_W / BEVEL_H 内側（z はそこでの底面の高さ）。"""
+    out = []
+    for i in range(41):
+        x = LID_X[0] + (LID_X[1] - LID_X[0]) * i / 40
+        inset = LID_BACK - LID_GAP
+        out.append(inset - (B.BEVEL_W - tilt(back_y(x, inset)) * B.BEVEL_W / B.BEVEL_H))
+    return min(out)
+
+
+# 開口の奥の端が、面取りと底面の境目の R0.5 から離れていること
+assert bevel_edge_gap() >= 0.8
 
 # 電池の上の手前の角が床の上面（マトリクス基板の側の空間の底）より下にあること。右のリブが基板から 0.5 mm 以上離れること
 assert FRAME.from_local_coords((0, v_of(BATTERY_FRONT_Y), LID_T + BATTERY[2])).Z <= B.FLOOR_Z - 0.2
@@ -655,7 +671,7 @@ def fit_test(case):
 def board_local_segments():
     """コントローラー基板の外形を、基板の面の座標（mm、原点は奥の辺の直線部分の中央、y は奥が正）で表した辺の並び:
     [(始点, 円弧の中点 または None, 終点)]。円弧は平面の円弧の中点を写した 3 点で表す（基板の面に写すと y 方向に
-    1 / cos(6°) 伸びて厳密には楕円になるが、差は 0.01 mm 未満）。"""
+    1 / cos(チルト角) 伸びて厳密には楕円になるが、差は 0.01 mm 未満）。"""
     vt = board_v_top()
 
     def local(p):  # 平面の点（底面上）→ 基板の面の座標

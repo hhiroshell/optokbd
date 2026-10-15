@@ -21,7 +21,8 @@ RIM_Z = 17.5            # 壁の上端を下げた高さ。タブの下の柱だ
 
 # 底面の傾斜（奥が高くなる）: 最も手前の点で TILT_FRONT_Z だけ削り、奥へ TILT_SLOPE で浅くなる
 TILT_FRONT_Z = 12.0     # 最も手前で床の厚さ FLOOR_Z - 12 = 2.5 mm を残す
-TILT_SLOPE = 12.0 / 114.1721  # 約 6.0°
+TILT_ANGLE = 7.0        # 底面（底蓋の面）の傾き [度]。v0.2.0 の初めは 6°（12 / 114.1721）だった
+TILT_SLOPE = math.tan(math.radians(TILT_ANGLE))
 
 # 奥の下側の面取り: 奥の辺に沿って、外周で高さ 12、内側へ 6 の三角形を回す
 BEVEL_H = 12.0
