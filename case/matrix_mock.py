@@ -1,5 +1,6 @@
 # 組み付けを試すためのマトリクス基板（左手）のモック。キースイッチでプレートに固定する（本物と同じ）。
-# - 外形はプレートの外形（タブを除く）を MATRIX_INSET だけ内側にずらしたもの。厚さは KiCad の基板と同じ 1.6
+# - 外形はプレートの外形（タブを除く）を、奥と手前の辺は MATRIX_INSET だけ内側に、左右と右下の斜めの辺は
+#   MATRIX_SIDE_GROW だけ外側にずらしたもの。厚さは KiCad の基板と同じ 1.6
 # - スイッチの穴は KiCad の基板（pcbs/matrix-left/matrix-left.kicad_pcb）のドリルデータから取る（中央の Ø4、
 #   左右の突起の Ø2、ホットスワップソケットのピンの Ø3）。中央の穴はスイッチの軸に少しきつめにはまる大きさにして、
 #   基板がスイッチから抜け落ちないようにする
@@ -11,7 +12,9 @@
 #   KiCad の基板でスクリプトを実行する前でも後でも、同じモックになる（すでに反転しているスイッチはそのまま）
 # - 高さ（ボトムケースの座標）: プレートの上面 24.0 から、MX の規格で基板の上面は 5.0 下
 # - 実行: uv run python matrix_mock.py [--show]   （kicad-cli が必要。out/matrix-mock-l.* を印刷の向き
-#   （基板の上面を下、ソケットが上）で書き出す。--show でボトムケース、底蓋、コントローラーと組み付けた状態を表示）
+#   （基板の上面を下、ソケットが上）で書き出し、KiCad の Edge.Cuts に入れる外形を out/matrix-board-l-outline.json に
+#   書き出す。--show でボトムケース、底蓋、コントローラーと組み付けた状態を表示）
+import json
 import math
 import re
 import subprocess
@@ -19,7 +22,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from build123d import Pos, Rectangle, Rot, Solid, extrude
+from build123d import GeomType, Pos, Rectangle, Rot, Solid, extrude
 
 import bay
 import bottom as B
@@ -30,7 +33,10 @@ import plate as P
 KICAD_PCB = Path(__file__).resolve().parent.parent / "pcbs" / "matrix-left" / "matrix-left.kicad_pcb"
 KICAD_OFFSET = (50.0, 50.0)   # KiCad の座標 (X, Y) → プレートの座標 (X - 50, 50 - Y)
 MATRIX_T = 1.6                # 基板の厚さ
-MATRIX_INSET = 0.75           # 外形: プレートの外形から内側へ
+MATRIX_INSET = 0.75           # 外形の奥と手前の辺: プレートの外形から内側へ
+MATRIX_SIDE_GROW = 0.3        # 外形の左右と右下の斜めの辺: プレートの外形から外へ。端の列のソケット（R0C0 と、反転した
+                              # R1〜R3 の C6）のはんだパッドを基板端から 0.5 mm 以上離す。この 3 辺にはボトムケースの
+                              # 壁がなく、トップケースの内面はプレートから L.TOP_CAVITY["side"] 外にある
 PLATE_TO_PCB = 5.0            # MX: プレートの上面から基板の上面まで
 PCB_TOP_Z = G.UPPER_Z + L.Z_OFFSET - PLATE_TO_PCB   # 基板の上面（ボトムケースの座標で 19.0）
 
@@ -106,7 +112,22 @@ def switches(holes):
 
 
 def board_outline():
-    return L.face({"edge": -MATRIX_INSET, "side": -MATRIX_INSET})
+    return L.face({"edge": -MATRIX_INSET, "side": MATRIX_SIDE_GROW})
+
+
+# 左右と斜めの辺で、基板の端とトップケースの内面の間に 0.3 mm 以上残ること
+assert L.TOP_CAVITY["side"] - MATRIX_SIDE_GROW >= 0.3
+
+
+def board_outline_segments():
+    """基板の外形の辺の並び（プレートの座標）: [(始点, 円弧の中点 または None, 終点)]。KiCad の Edge.Cuts に入れる用
+    （scripts/set_edge_cuts.py で読む）。"""
+    out = []
+    for e in board_outline().outer_wire().edges():
+        a, b = ((e @ 0).X, (e @ 0).Y), ((e @ 1).X, (e @ 1).Y)
+        m = None if e.geom_type == GeomType.LINE else ((e @ 0.5).X, (e @ 0.5).Y)
+        out.append((a, m, b))
+    return out
 
 
 def socket(x, y, angle):
@@ -166,6 +187,7 @@ if __name__ == "__main__":
     out.mkdir(exist_ok=True)
     # 印刷の向き: 基板の上面を下にする（x 軸まわりに 180° 回す）
     bay.export([("matrix-mock-l", Rot(180, 0, 0) * board)], out / "matrix-mock-l")
+    (out / "matrix-board-l-outline.json").write_text(json.dumps(board_outline_segments()))
     print(f"switches = {len(sw)}, rotated = {[round(a, 1) for *_, a in sw if abs(a) > 0.1]}")
     print(f"board z (bottom case) = {PCB_TOP_Z - MATRIX_T:.2f}..{PCB_TOP_Z:.2f}, socket bottom = {PCB_TOP_Z - MATRIX_T - SOCKET_H:.2f}")
     print(f"volume = {board.volume:.2f} mm^3, solids = {len(board.solids())}")

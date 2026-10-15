@@ -13,6 +13,7 @@ import pcbnew
 # 基板のファイル名（拡張子なし）: (外形の JSON、外形の座標の原点を置く KiCad の位置 [mm]、書き出すスクリプト)
 BOARDS = {
     "controller": ("controller-board-outline.json", (100.0, 90.0), "bay.py"),       # 原点は奥の辺の直線部分の中央
+    "matrix-left": ("matrix-board-l-outline.json", (50.0, 50.0), "matrix_mock.py"),  # 原点はプレートの座標の原点
 }
 WIDTH = 0.05               # 線の幅 [mm]
 # ================
