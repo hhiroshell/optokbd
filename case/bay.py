@@ -1,14 +1,20 @@
-# 底蓋（左手）と、ボトムケースのコントローラー収納部。電池蓋方式: 底蓋を底蓋の面に垂直にまっすぐ押し込み、四隅を M2 ネジ
+# 底蓋（左手）と、ボトムケースのコントローラー収納部。電池蓋方式: 底蓋を奥から入れて手前を持ち上げて閉じ、四隅を M2 ネジ
 # （M2 × 6 の六角穴付きボルト）でボトムケースのボスに埋めた M2 ナットに留める。
 # - 底蓋はボトムケースの傾いた底面と面一の平らな板。コントローラー基板と電池は底蓋に平行に載る
 # - 座標はプレート DXF と同じ（平面）とボトムケースの z。底蓋まわりの形状は、底蓋の外面を基準にした
 #   座標系 FRAME（x はそのまま、v は底蓋に沿って奥へ、w は底蓋に垂直に上へ）でも作る
-# - 底蓋を押し込む向き（w）は奥へ 6° 傾いているので、押し込む途中の部品は、閉じた位置より奥の壁から離れている。
-#   手前のツメを軸に回して閉める方式は、ツメが抜けかけた状態で回り始めて USB-C が奥の壁に当たるのでやめた
+# - USB-C の口は収納部の奥の壁より奥（壁のケーブル用の穴の中）まで入る。底蓋は奥から入れる: 手前を下げて傾けた底蓋の
+#   USB-C を壁の穴に差し込み、奥の端を支点にして手前を持ち上げて閉じる（まっすぐ押し込むと USB-C が壁に当たる）。
+#   底蓋の外面より上の点は、底蓋の外面の高さの軸のまわりに手前を下げる向きに回すと、どれも手前へ動くので、閉じた位置で
+#   奥の壁に当たらなければ途中でも当たらない。USB-C は穴の中で上下に動くので、穴の上下のすき間に収まることを確かめる
+#   （usb_swing_clearance）。手前のツメを軸に回して閉める方式は、ツメが抜けかけた状態で回り始めて USB-C が奥の壁に
+#   当たるのでやめた
 # - 収納部の上には天井を作らず、床を抜いてボトムケースの内側の空間とつなげる（ボトムケースは傾いた底面を下にして
 #   印刷するので、天井は印刷の向きで斜めの張り出しになり、サポートで支えるときれいに仕上がらない）
 # - 実行: uv run python bay.py [--show]   （out/ に底蓋、ネジまわりのテストピース、合わせ確認用のボトムケースの切り出し、
-#   基板の外形 DXF を書き出す。仮のコントローラー基板と XIAO のモックは controller_test_board.py）
+#   基板の外形 DXF と、KiCad の Edge.Cuts に入れる外形の JSON を書き出す。仮のコントローラー基板と XIAO のモックは
+#   controller_test_board.py）
+import json
 import math
 import sys
 from pathlib import Path
@@ -62,9 +68,10 @@ LID_BACK = 5.8                # 底蓋の奥の端: 奥の外形から内側へ�
 LID_FRONT_Y = -34.5           # 底蓋の手前の端（平面の y）
 
 BOARD_W, BOARD_D, BOARD_T = 38.0, 29.0, 1.0   # コントローラー基板
-BOARD_BACK = 7.5              # 基板の奥の端（XIAO の奥の端）: 奥の外形から内側へ。USB-C の口と収納部の奥の壁のすき間が
-                              # CONTROLLER_CLEAR 以上になる位置（USB-C は底蓋に垂直に立つので上ほど奥へ傾く）
-CONTROLLER_CLEAR = 0.2        # 基板、XIAO、USB-C の奥の縁と、収納部の奥の壁のすき間
+BOARD_BACK = 6.5              # 基板の奥の端（XIAO の奥の端）: 奥の外形から内側へ。基板と XIAO の奥の縁と収納部の奥の壁の
+                              # すき間が CONTROLLER_CLEAR 以上になる位置（基板は底蓋に平行なので上ほど奥へずれる）。
+                              # USB-C の口は壁の穴に入る
+CONTROLLER_CLEAR = 0.2        # 基板、XIAO の奥の縁と、収納部の奥の壁のすき間
 # 基板は左右の手で同じものを使うので、外形と穴は基板の中心（x = BOARD_CX）に対して左右対称にする。
 # 右手のケースは左手の鏡像なので、左右対称の基板が左手のケースに収まれば右手にも収まる
 STANDOFF = 1.5                # 台座の高さ（スルーホール部品の足の逃げ）
@@ -431,12 +438,13 @@ def case_cuts():
     cuts = []
     # 収納部（底蓋の開口から、床を抜いてボトムケースの内側の空間まで）
     cuts.append(lid_region(LID_GAP) & prism(Rectangle(1000, 1000), -30, B.HEIGHT + 1))
-    # 奥の壁を抜けてケーブルのプラグが通る穴（USB-C の口からくぼみまで）と、面取りの斜面のくぼみ（底は口から PLUG_GAP 奥）。
-    # USB-C は収納部の中にあり、壁に通り道は作らない
+    # 奥の壁を抜けてケーブルのプラグが通る穴（USB-C の口の先が入る。収納部の中から、くぼみまで）と、面取りの斜面のくぼみ
+    # （底は口から PLUG_GAP 奥）。くぼみは USB-C の口に合わせて決まるので、基板を奥へ寄せた分だけ浅くなり、収納部とくぼみの
+    # 間の壁が厚くなる
     vt, wc = board_v_top(), usb_axis_w()
     mouth = vt + USB_OVERHANG
-    hw, hh = USB_W / 2 + USB_CLEAR, USB_H / 2 + USB_CLEAR
-    cuts.append(local_box(BOARD_CX - hw, BOARD_CX + hw, mouth - 1, mouth + PLUG_GAP + 0.5, wc - hh, wc + hh))
+    hw, hh = usb_hole_half()
+    cuts.append(local_box(BOARD_CX - hw, BOARD_CX + hw, vt - 1, mouth + PLUG_GAP + 0.5, wc - hh, wc + hh))
     cuts.append(local_box(BOARD_CX - PLUG_W / 2, BOARD_CX + PLUG_W / 2, mouth + PLUG_GAP, mouth + 20,
                           wc - PLUG_H / 2, wc + PLUG_H / 2))
     cuts.append(j1_groove())
@@ -505,10 +513,13 @@ def boss_top_w():
 assert SCREW_HEAD[1] + SCREW_LEN + 0.4 <= boss_top_w() - 0.3
 
 
-def controller_wall_clearance():
-    """基板の奥側の縁（上下の面）、XIAO の奥の角、USB-C の口の角が、収納部の奥の壁から離れている最小の距離（y 方向）。
-    底蓋は面に垂直に押し込むので、押し込む途中は閉じた位置より奥の壁から離れている。閉じた位置だけを見ればよい。"""
-    wall = LID_BACK - LID_GAP
+def usb_hole_half():
+    """奥の壁の USB-C の穴の、幅と高さの半分（FRAME の x, w）。"""
+    return USB_W / 2 + USB_CLEAR, USB_H / 2 + USB_CLEAR
+
+
+def controller_back_points():
+    """基板の奥側の縁（上下の面）と XIAO の奥の角の点（FRAME の x, v, w）。USB-C は壁の穴に入るので含めない。"""
     w_b = LID_T + STANDOFF
     pts = []
     path = board_path()
@@ -526,9 +537,47 @@ def controller_wall_clearance():
                 pts += [(x, v_of(y), w_b), (x, v_of(y), w_b + BOARD_T)]
     w_x = w_b + BOARD_T + XIAO_PCB_T + XIAO_EDGE_PARTS
     pts += [(BOARD_CX + s * XIAO_W / 2, board_v_top(), w_x) for s in (-1, 1)]
-    wc = usb_axis_w()
-    pts += [(BOARD_CX + sx * USB_W / 2, board_v_top() + USB_OVERHANG, wc + sw * USB_H / 2) for sx in (-1, 1) for sw in (-1, 1)]
-    return min(back_y(x, wall) - FRAME.from_local_coords((x, v, w)).Y for x, v, w in pts)
+    return pts
+
+
+def swing(p, angle, pivot_v):
+    """FRAME の点 (x, v, w) を、底蓋の外面の高さ（w = 0）で v = pivot_v の、x に平行な軸のまわりに、手前を下げる向きに
+    angle（ラジアン）回した点。"""
+    x, v, w = p
+    dv, c, s = v - pivot_v, math.cos(angle), math.sin(angle)
+    return x, pivot_v + dv * c - w * s, dv * s + w * c
+
+
+def wall_gap(p):
+    """FRAME の点と、収納部の奥の壁（鉛直）の y 方向の距離。正なら壁の手前。"""
+    x = p[0]
+    return back_y(x, LID_BACK - LID_GAP) - FRAME.from_local_coords(p).Y
+
+
+def controller_wall_clearance():
+    """基板の奥側の縁と XIAO の奥の角が、閉じた位置で収納部の奥の壁から離れている最小の距離（y 方向）。
+    底蓋の外面より上の点は、底蓋を開ける向き（手前を下げる向き）に回すと手前へ動くので、閉じた位置だけを見ればよい。"""
+    return min(wall_gap(p) for p in controller_back_points())
+
+
+def usb_swing_clearance(steps=200):
+    """底蓋を奥の端（底蓋の外面の高さ、USB-C の位置の奥の端）を支点にして開けていき、USB-C の口の先が奥の壁から抜けるまでの
+    間の、USB-C と壁の穴の上下の面の最小のすき間と、抜けたときの角度（度）。USB-C は支点より奥にあるので、開けると
+    手前へ動きながら上へ動く。"""
+    vt, wc = board_v_top(), usb_axis_w()
+    hw, hh = usb_hole_half()
+    pivot_v = v_of(back_y(BOARD_CX, LID_BACK))
+    # USB-C の上下の 4 つの稜線を、口から手前へ細かくたどる
+    pts = [(BOARD_CX + sx * USB_W / 2, vt + USB_OVERHANG - k * 0.1, wc + sw * USB_H / 2)
+           for sx in (-1, 1) for sw in (-1, 1) for k in range(31)]
+    gap = hh - USB_H / 2
+    for i in range(steps + 1):
+        angle = math.radians(20) * i / steps
+        inside = [q for q in (swing(p, angle, pivot_v) for p in pts) if wall_gap(q) < 0]
+        if not inside:
+            return gap, math.degrees(angle)
+        gap = min([gap] + [min(q[2] - (wc - hh), (wc + hh) - q[2]) for q in inside])
+    raise AssertionError("USB-C が壁の穴から抜けない")
 
 
 def dummies():
@@ -547,8 +596,9 @@ def dummies():
     return board, xiao, usb, battery
 
 
-# 基板、XIAO、USB-C が収納部の奥の壁に当たらないこと
+# 基板と XIAO が収納部の奥の壁に当たらないこと。底蓋を開け閉めする途中で、USB-C が壁の穴の上下の面に当たらないこと
 assert controller_wall_clearance() >= CONTROLLER_CLEAR - 1e-6
+assert usb_swing_clearance()[0] >= 0.1
 
 
 def screw_test(case, lid_part):
@@ -675,6 +725,8 @@ if __name__ == "__main__":
     export([("screw-test-case", case_piece), ("screw-test-lid", Pos(0, -25, 0) * lid_piece)], out / "screw-test-l")
     export([("bay-fit-test-case", fit_test(case))], out / "bay-fit-test-l")
     export_board_dxf(out / "controller-board-l.dxf")
+    # KiCad の Edge.Cuts に入れる外形（scripts/set_edge_cuts.py で読む）
+    (out / "controller-board-outline.json").write_text(json.dumps(board_outline_segments()))
     print(f"lid volume = {lid_part.volume:.2f} mm^3, solids = {len(lid_part.solids())}")
     if "--show" in sys.argv:
         from ocp_vscode import show
