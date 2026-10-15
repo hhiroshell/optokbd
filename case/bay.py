@@ -108,12 +108,14 @@ J1_GROOVE_W = 20.0            # 溝の幅（x）。J1（幅約 14）+ 両側 3
 J1_GROOVE_DEPTH = 8.0         # 溝の奥行き: 収納部の手前の壁から手前へ（プラグのはみ出しとケーブルの曲げ。要実測）
 J1_GROOVE_R = 1.5             # 溝の手前の角の丸め
 
-# 底蓋を外すときに爪を掛ける切り欠き: 収納部の手前の壁の下端（底蓋の手前の端の前）を、底面から上へ 45° の斜面で削る。
-# 爪を斜面に沿って差し込み、底蓋の手前の端の内面に掛けて引き下ろす。底蓋の内面の上が基板の下面まで空いている所
-# （手前のリブがなく、J1 の溝の外）に置く: 手前のリブの右端と J1 の溝の左端の間の中央。斜面は、壁の面に基板の下面の
-# 0.1 下の高さで達する（印刷の向きでは下向きの 45° の斜面なので、サポートは要らない）
+# 底蓋を外すときに爪を掛ける切り欠き: 底蓋の手前の辺の中央に置く。収納部の手前の壁の下端（底蓋の手前の端の前）を、
+# 底面から上へ 45° の斜面で削る。爪を斜面に沿って差し込み、底蓋の手前の端の内面に掛けて引き下ろす。斜面は、壁の面に
+# 基板の下面の 0.1 下の高さで達する（印刷の向きでは下向きの 45° の斜面なので、サポートは要らない）。
+# 中央は手前のリブと電池の枠（その間を埋めた所）の右の端にかかるので、底蓋の側にも同じ幅で、手前の端から NAIL_SLOT
+# 奥まで、底蓋の内面の高さまで下がる溝を掘る（電池を押さえる枠の手前の壁は残す）
 NAIL_W = 8.0                  # 切り欠きの幅（x）
 NAIL_DEPTH = LID_T + STANDOFF - 0.1  # 底面での奥行き（収納部の手前の壁から手前へ）= 斜面が壁の面に達する高さ
+NAIL_SLOT = 2.0               # 底蓋の側の溝の奥行き: 底蓋の手前の端から奥へ
 
 # 収納部の天井: 床の上面から CEILING_T 下の水平な板。天井の開口（floor_opening）は、J1 のケーブルの通り道とマトリクス基板の
 # J1 のための長方形: 左右はマトリクスの J1 の左端 - FLOOR_OPEN_MARGIN から J1 の溝の右端まで、奥はマトリクスの J1 の
@@ -454,6 +456,10 @@ def lid():
 
     # 電池のコネクタの足の凹み
     body -= FRAME * Pos(0, 0, LID_T - PIN_RECESS_DEPTH) * extrude(pin_recess_face(), PIN_RECESS_DEPTH + 1)
+
+    # 爪を掛ける溝（手前のリブと電池の枠の前を、底蓋の内面の高さまで削る）
+    vf, xn = v_of(LID_FRONT_Y), nail_x()
+    body -= local_box(xn - NAIL_W / 2, xn + NAIL_W / 2, vf - 1, vf + NAIL_SLOT, LID_T, LID_T + RIB_H + 1)
     return body
 
 
@@ -509,8 +515,8 @@ def floor_opening():
 
 
 def nail_x():
-    """爪を掛ける切り欠きの中心の x: 手前のリブの右端と J1 の溝の左端の間の中央。"""
-    return (rib_x_front() + BOARD_CX - J1_GROOVE_W / 2) / 2
+    """爪を掛ける切り欠きの中心の x: 底蓋の手前の辺の中央。"""
+    return (LID_X[0] + LID_X[1]) / 2
 
 
 def nail_notch():
@@ -556,9 +562,9 @@ def ceiling_clearance():
 assert ceiling_clearance() >= CEILING_CLEAR
 
 
-# 爪の切り欠きが、手前のリブ（電池の枠）の右端と J1 の溝から 1 mm 以上離れていること（爪が底蓋の内面に届く所）
-assert nail_x() - NAIL_W / 2 >= rib_x_front() + 1.0
+# 爪の切り欠きが J1 の溝から 1 mm 以上離れていること。底蓋の側の溝が、電池の枠の手前の壁を削らないこと
 assert nail_x() + NAIL_W / 2 <= BOARD_CX - J1_GROOVE_W / 2 - 1.0
+assert v_of(LID_FRONT_Y) + NAIL_SLOT <= v_of(battery_outline(BATTERY_FRAME[2] + BATTERY_FRAME[0]).bounding_box().min.Y)
 
 
 def j1_groove():
