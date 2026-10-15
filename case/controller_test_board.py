@@ -45,6 +45,8 @@ def test_board():
     mounts = sorted((x, y) for x, y, d in holes if abs(d - bay.BOARD_HOLE_D) < 1e-6)
     assert all(abs(a - c) < 1e-3 and abs(b - e) < 1e-3
                for (a, b), (c, e) in zip(mounts, sorted(bay.board_holes_board()))), mounts
+    # 電池のコネクタ（J2）の足が、底蓋の凹み（bay.BATTERY_PINS）の位置にあること
+    assert all(any(abs(x - px) < 1e-3 and abs(y - py) < 1e-3 for x, y, _ in holes) for px, py in bay.BATTERY_PINS)
     board = extrude(bay.board_face_local(), bay.BOARD_T, dir=(0, 0, 1))
     for x, y, d in holes:
         dp = max(d + PRINT_ALLOWANCE, PRINT_MIN_D)

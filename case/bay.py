@@ -73,6 +73,12 @@ BOARD_HOLES = [(7.0, 7.0), (31.0, 7.0), (8.0, 26.0), (30.0, 26.0)]  # 基板の�
 BOARD_HOLE_D = 2.2            # 基板の M2 の穴
 BOARD_CORNER_R = 1.0          # 基板の外形の角の丸め（出た角も入った角も）
 BOSS_D, PILOT_D, PILOT_DEPTH = 5.0, 1.6, 2.4  # 台座、M2 タッピングネジ（M2 × 3）の下穴
+# 電池のコネクタ（横型の PH）の足の逃げ: 足は基板を貫通して下へ出て、台座の高さだけでは底蓋に当たるので、底蓋の内面に
+# 2 本の足をまとめて囲む長円の凹みを付ける。左手は J2 を使う（右手の J3 は基板の中心に対して J2 と左右対称の位置にあり、
+# 鏡像の底蓋で同じく逃げられる）
+BATTERY_PINS = [(-15.505, -11.495), (-13.505, -11.495)]  # J2 の足（基板の座標。KiCad の配置から）
+PIN_RECESS_R = 1.3            # 凹みの半径: 足の中心から（ランド Ø1.2 のはんだと、位置のずれ）
+PIN_RECESS_DEPTH = 1.0        # 凹みの深さ: 底蓋の内面から（足の出る量は要実測）
 
 XIAO_W, XIAO_D, STACK_H = 17.8, 21.0, 5.5     # XIAO（基板の下面から XIAO と USB-C の上端まで STACK_H）
 XIAO_PCB_T = 1.2              # XIAO の基板の厚さ
@@ -394,7 +400,30 @@ def lid():
         body += pad & lid_region()
         body -= local_cylinder(x, v, -1, SCREW_HEAD[1], SCREW_HEAD[0])
         body -= local_cylinder(x, v, -1, LID_T + LID_PAD[1] + 1, SCREW_CLEAR_D)
+
+    # 電池のコネクタの足の凹み
+    body -= FRAME * Pos(0, 0, LID_T - PIN_RECESS_DEPTH) * extrude(pin_recess_face(), PIN_RECESS_DEPTH + 1)
     return body
+
+
+def battery_pins_local():
+    """電池のコネクタの足の中心（FRAME の x, v）。"""
+    vt = board_v_top()
+    return [(BOARD_CX + x, vt + y) for x, y in BATTERY_PINS]
+
+
+def pin_recess_face():
+    """電池のコネクタの足の凹みの平面形（FRAME の x, v）: 足の並びに沿った長円。"""
+    (x0, v0), (x1, v1) = battery_pins_local()
+    assert abs(v0 - v1) < 1e-9
+    face = Pos(x0, v0) * Circle(PIN_RECESS_R) + Pos(x1, v1) * Circle(PIN_RECESS_R)
+    return face + Pos((x0 + x1) / 2, v0) * Rectangle(abs(x1 - x0), 2 * PIN_RECESS_R)
+
+
+# 凹みが基板の台座から離れていること、底蓋に厚さが残ること
+assert min(math.hypot(px - x, pv - v) for px, pv in battery_pins_local() for x, v in board_holes_local()) \
+    >= BOSS_D / 2 + PIN_RECESS_R + 0.5
+assert LID_T - PIN_RECESS_DEPTH >= 0.6
 
 
 def case_cuts():
