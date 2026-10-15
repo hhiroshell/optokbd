@@ -21,7 +21,8 @@ import sys
 from pathlib import Path
 
 from build123d import (
-    Box, Circle, Compound, Face, GeomType, Line, Mesher, Plane, Polyline, Pos, Rectangle, Solid, ThreePointArc, Wire,
+    Box, Circle, Compound, Face, GeomType, Line, Mesher, Plane, Polyline, Pos, Rectangle, RectangleRounded, SlotOverall, Solid,
+    ThreePointArc, Wire,
     export_step, export_stl, extrude, fillet,
 )
 
@@ -92,9 +93,10 @@ PIN_RECESS_DEPTH = 1.0        # 凹みの深さ: 底蓋の内面から（足の�
 XIAO_W, XIAO_D, STACK_H = 17.8, 21.0, 5.5     # XIAO（基板の下面から XIAO と USB-C の上端まで STACK_H）
 XIAO_PCB_T = 1.2              # XIAO の基板の厚さ
 XIAO_EDGE_PARTS = 1.0         # XIAO の奥の端（USB-C の両脇）の部品の高さ（ボタンや LED）。USB-C より低い
-USB_W, USB_H, USB_OVERHANG = 8.94, 3.26, 1.0  # USB-C のレセプタクル。XIAO の端から張り出す
-USB_CLEAR = 0.3               # USB-C の通り道のすき間
+USB_W, USB_H, USB_OVERHANG = 8.94, 3.26, 1.0  # USB-C のレセプタクル（両端が半円の長円）。XIAO の端から張り出す
+USB_CLEAR = 0.3               # USB-C の通り道のすき間（奥の壁の穴は、レセプタクルの長円をこれだけ広げた長円）
 PLUG_W, PLUG_H = 13.0, 7.5    # ケーブル用のくぼみ（プラグの根元が入る大きさ）
+PLUG_R = 2.5                  # くぼみの角の丸め（プラグの根元の角の丸みに合わせる。長円にすると角張ったプラグが入らない）
 PLUG_GAP = 2.0                # くぼみの底: USB-C の口から奥へ。ケーブルを挿したとき、プラグの根元はレセプタクルに
                               # 触れずに少し離れるので、その分くぼみを浅くして収納部の奥の壁を残す（要実測）
 
@@ -331,6 +333,12 @@ def local_box(x0, x1, v0, v1, w0, w1):
     return FRAME * Pos((x0 + x1) / 2, (v0 + v1) / 2, w0) * extrude(Rectangle(x1 - x0, v1 - v0), w1 - w0)
 
 
+def v_prism(section, x, w, v0, v1):
+    """x-w 面の断面（中心が原点の Sketch）を、中心を FRAME の (x, w) に置いて v0 から v1 まで押し出した柱。"""
+    plane = Plane(origin=(x, v0, w), x_dir=(1, 0, 0), z_dir=(0, 1, 0))
+    return FRAME * extrude(plane * section, v1 - v0)
+
+
 def local_cylinder(x, v, w0, w1, d):
     return FRAME * Pos(x, v, w0) * Solid.make_cylinder(d / 2, w1 - w0)
 
@@ -481,9 +489,8 @@ def case_cuts():
     vt, wc = board_v_top(), usb_axis_w()
     mouth = vt + USB_OVERHANG
     hw, hh = usb_hole_half()
-    cuts.append(local_box(BOARD_CX - hw, BOARD_CX + hw, vt - 1, mouth + PLUG_GAP + 0.5, wc - hh, wc + hh))
-    cuts.append(local_box(BOARD_CX - PLUG_W / 2, BOARD_CX + PLUG_W / 2, mouth + PLUG_GAP, mouth + 20,
-                          wc - PLUG_H / 2, wc + PLUG_H / 2))
+    cuts.append(v_prism(SlotOverall(2 * hw, 2 * hh), BOARD_CX, wc, vt - 1, mouth + PLUG_GAP + 0.5))
+    cuts.append(v_prism(RectangleRounded(PLUG_W, PLUG_H, PLUG_R), BOARD_CX, wc, mouth + PLUG_GAP, mouth + 20))
     cuts.append(j1_groove())
     cuts.append(nail_notch())
     return cuts
@@ -617,8 +624,24 @@ assert SCREW_HEAD[1] + SCREW_LEN + 0.4 <= boss_top_w() - 0.3
 
 
 def usb_hole_half():
-    """奥の壁の USB-C の穴の、幅と高さの半分（FRAME の x, w）。"""
+    """奥の壁の USB-C の穴（長円）の、幅と高さの半分（FRAME の x, w）。"""
     return USB_W / 2 + USB_CLEAR, USB_H / 2 + USB_CLEAR
+
+
+def stadium_gap(dx, dw, half_w, r):
+    """長円（中心が原点、幅 2 half_w、高さ 2 r、両端が半径 r の半円）の中の点 (dx, dw) と縁の距離。中なら正。"""
+    return r - math.hypot(max(abs(dx) - (half_w - r), 0.0), dw)
+
+
+def usb_outline(n=24):
+    """USB-C のレセプタクルの断面の縁の点（中心が原点の (dx, dw)）: 両端の半円と、上下の直線。"""
+    a, r = USB_W / 2 - USB_H / 2, USB_H / 2
+    pts = []
+    for i in range(n + 1):   # 右の半円と左の半円
+        t = math.pi * (i / n - 0.5)
+        pts += [(a + r * math.cos(t), r * math.sin(t)), (-a - r * math.cos(t), r * math.sin(t))]
+    pts += [(a * (2 * k / 10 - 1), sw * r) for k in range(11) for sw in (-1, 1)]
+    return pts
 
 
 def controller_back_points():
@@ -665,21 +688,20 @@ def controller_wall_clearance():
 
 def usb_swing_clearance(steps=200):
     """底蓋を奥の端（底蓋の外面の高さ、USB-C の位置の奥の端）を支点にして開けていき、USB-C の口の先が奥の壁から抜けるまでの
-    間の、USB-C と壁の穴の上下の面の最小のすき間と、抜けたときの角度（度）。USB-C は支点より奥にあるので、開けると
-    手前へ動きながら上へ動く。"""
+    間の、USB-C と壁の穴（どちらも長円）の縁の最小のすき間と、抜けたときの角度（度）。USB-C は支点より奥にあるので、
+    開けると手前へ動きながら上へ動く。"""
     vt, wc = board_v_top(), usb_axis_w()
     hw, hh = usb_hole_half()
     pivot_v = v_of(back_y(BOARD_CX, LID_BACK))
-    # USB-C の上下の 4 つの稜線を、口から手前へ細かくたどる
-    pts = [(BOARD_CX + sx * USB_W / 2, vt + USB_OVERHANG - k * 0.1, wc + sw * USB_H / 2)
-           for sx in (-1, 1) for sw in (-1, 1) for k in range(31)]
-    gap = hh - USB_H / 2
+    # USB-C の断面の縁を、口から手前へ細かくたどる
+    pts = [(BOARD_CX + dx, vt + USB_OVERHANG - k * 0.1, wc + dw) for dx, dw in usb_outline() for k in range(31)]
+    gap = USB_CLEAR
     for i in range(steps + 1):
         angle = math.radians(20) * i / steps
         inside = [q for q in (swing(p, angle, pivot_v) for p in pts) if wall_gap(q) < 0]
         if not inside:
             return gap, math.degrees(angle)
-        gap = min([gap] + [min(q[2] - (wc - hh), (wc + hh) - q[2]) for q in inside])
+        gap = min([gap] + [stadium_gap(q[0] - BOARD_CX, q[2] - wc, hw, hh) for q in inside])
     raise AssertionError("USB-C が壁の穴から抜けない")
 
 
@@ -694,12 +716,12 @@ def dummies():
     xiao = local_box(BOARD_CX - XIAO_W / 2, BOARD_CX + XIAO_W / 2, vt - XIAO_D, vt,
                      w_b + BOARD_T, w_b + BOARD_T + XIAO_PCB_T + XIAO_EDGE_PARTS)
     wc = usb_axis_w()
-    usb = local_box(BOARD_CX - USB_W / 2, BOARD_CX + USB_W / 2, vt - 7, vt + USB_OVERHANG, wc - USB_H / 2, wc + USB_H / 2)
+    usb = v_prism(SlotOverall(USB_W, USB_H), BOARD_CX, wc, vt - 7, vt + USB_OVERHANG)
     battery = prism(battery_outline()) & slab(LID_T, LID_T + BATTERY[2])
     return board, xiao, usb, battery
 
 
-# 基板と XIAO が収納部の奥の壁に当たらないこと。底蓋を開け閉めする途中で、USB-C が壁の穴の上下の面に当たらないこと
+# 基板と XIAO が収納部の奥の壁に当たらないこと。底蓋を開け閉めする途中で、USB-C が壁の穴の縁に当たらないこと
 assert controller_wall_clearance() >= CONTROLLER_CLEAR - 1e-6
 assert usb_swing_clearance()[0] >= 0.1
 
@@ -773,13 +795,14 @@ def board_holes_board():
 
 
 def xiao_mock():
-    """組み付け確認用の XIAO と USB-C のモック: XIAO の基板と奥の端の小さな部品の高さまでの箱に USB-C を載せたもの
+    """組み付け確認用の XIAO と USB-C のモック: XIAO の基板と奥の端の小さな部品の高さまでの箱に USB-C（長円）を載せたもの
     （USB-C は XIAO の奥の端から USB_OVERHANG 張り出す）。基板の面の座標で、下面を z = 0 に置く（印刷の向き）。
     仮のコントローラー基板は controller_test_board.py（KiCad の穴つき）で作る。"""
     h = XIAO_PCB_T + XIAO_EDGE_PARTS
     xiao = Pos(0, -XIAO_D / 2, h / 2) * Box(XIAO_W, XIAO_D, h)
     usb_len = 7.0 + USB_OVERHANG
-    xiao += Pos(0, USB_OVERHANG - usb_len / 2, XIAO_PCB_T + USB_H / 2) * Box(USB_W, usb_len, USB_H)
+    usb_plane = Plane(origin=(0, USB_OVERHANG - usb_len, XIAO_PCB_T + USB_H / 2), x_dir=(1, 0, 0), z_dir=(0, 1, 0))
+    xiao += extrude(usb_plane * SlotOverall(USB_W, USB_H), usb_len)   # USB-C は長円の断面
     return xiao
 
 
