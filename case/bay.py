@@ -83,6 +83,14 @@ PLUG_W, PLUG_H = 13.0, 7.5    # ケーブル用のくぼみ（プラグの根元
 PLUG_GAP = 2.0                # くぼみの底: USB-C の口から奥へ。ケーブルを挿したとき、プラグの根元はレセプタクルに
                               # 触れずに少し離れるので、その分くぼみを浅くして収納部の奥の壁を残す（要実測）
 
+# J1（基板の手前の端の近く、差し込み口は手前）に挿したプラグとケーブルの溝: 収納部の手前の壁から手前へ掘り込み、
+# 上は床を抜いてボトムケースの内側の空間までつなげる（収納部と同じく天井を作らない）。平面形は J1 の中心（基板の中心）
+# に合わせた長方形で、手前の角を丸める。手前の面は底蓋に垂直。底は基板の下面の高さで、それより下は収納部の手前の壁を
+# そのまま残す（底蓋の開口の形は変えない）
+J1_GROOVE_W = 20.0            # 溝の幅（x）。J1（幅約 14）+ 両側 3
+J1_GROOVE_DEPTH = 8.0         # 溝の奥行き: 収納部の手前の壁から手前へ（プラグのはみ出しとケーブルの曲げ。要実測）
+J1_GROOVE_R = 1.5             # 溝の手前の角の丸め
+
 BATTERY = (31.0, 21.0, 6.0)   # 電池（幅 x、奥行き v、厚さ）。実測値
 BATTERY_GAP = 2.7             # 電池の右端と基板の左端の間（リード線を通す）
 BATTERY_FRONT_Y = -30.5       # 電池の手前の端（平面の y）
@@ -402,7 +410,22 @@ def case_cuts():
     cuts.append(local_box(BOARD_CX - hw, BOARD_CX + hw, mouth - 1, mouth + PLUG_GAP + 0.5, wc - hh, wc + hh))
     cuts.append(local_box(BOARD_CX - PLUG_W / 2, BOARD_CX + PLUG_W / 2, mouth + PLUG_GAP, mouth + 20,
                           wc - PLUG_H / 2, wc + PLUG_H / 2))
+    cuts.append(j1_groove())
     return cuts
+
+
+def j1_groove():
+    """J1 のプラグとケーブルの溝（FRAME の w の向きの柱）。奥は収納部の中まで伸ばして、収納部の手前の壁に重ねる。"""
+    vf = v_of(LID_FRONT_Y) - LID_GAP
+    v0, v1 = vf - J1_GROOVE_DEPTH, vf + 2 * J1_GROOVE_R
+    rect = Pos(BOARD_CX, (v0 + v1) / 2) * Rectangle(J1_GROOVE_W, v1 - v0)
+    face = fillet(rect.vertices(), J1_GROOVE_R).faces()[0]
+    w0 = LID_T + STANDOFF
+    return (FRAME * Pos(0, 0, w0) * extrude(face, 40)) & prism(Rectangle(1000, 1000), -30, B.HEIGHT + 1)
+
+
+# J1 の溝が手前の右のボス（とナットの溝の口）から離れていること
+assert BOARD_CX + J1_GROOVE_W / 2 <= LID_X[1] - LID_SCREW_INSET - SCREW_BOSS_D / 2 - 2.0 - 1.0
 
 
 def boss_solid(x, v, sx, sv):
@@ -512,11 +535,12 @@ FIT_TEST_MARGIN = 6.0         # 合わせ確認用の切り出し: 底蓋の範�
 
 
 def fit_test(case):
-    """底蓋とボトムケースの合わせ確認用: ボトムケースのうち、底蓋のまわり（手前と左右に FIT_TEST_MARGIN、奥は外面まで）を、
-    底面から床の上面までの高さで切り出したもの。床の上面を下にして印刷できる。"""
+    """底蓋とボトムケースの合わせ確認用: ボトムケースのうち、底蓋のまわり（手前と左右に FIT_TEST_MARGIN、奥は外面まで。
+    手前は J1 の溝の手前の端からも FIT_TEST_MARGIN / 2）を、底面から床の上面までの高さで切り出したもの。
+    床の上面を下にして印刷できる。"""
     m = FIT_TEST_MARGIN
     x0, x1 = LID_X[0] - m, LID_X[1] + m
-    y0, y1 = LID_FRONT_Y - m, 20.0
+    y0, y1 = LID_FRONT_Y - max(m, J1_GROOVE_DEPTH + m / 2), 20.0
     region = Pos((x0 + x1) / 2, (y0 + y1) / 2) * Rectangle(x1 - x0, y1 - y0)
     return case & prism(region, -30, B.FLOOR_Z)
 
