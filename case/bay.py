@@ -9,8 +9,9 @@
 #   奥の壁に当たらなければ途中でも当たらない。USB-C は穴の中で上下に動くので、穴の上下のすき間に収まることを確かめる
 #   （usb_swing_clearance）。手前のツメを軸に回して閉める方式は、ツメが抜けかけた状態で回り始めて USB-C が奥の壁に
 #   当たるのでやめた
-# - 収納部の上には天井を作らず、床を抜いてボトムケースの内側の空間とつなげる（ボトムケースは傾いた底面を下にして
-#   印刷するので、天井は印刷の向きで斜めの張り出しになり、サポートで支えるときれいに仕上がらない）
+# - 収納部の上は、床の上面から CEILING_T 下の水平な天井でふさぐ（ボトムケースは傾いた底面を下にして印刷するので、
+#   天井は斜めの張り出しになり、専用のサポート材で支える）。天井には、J1 のケーブルの溝からマトリクス基板の J1 までの
+#   範囲に開口を残す（floor_opening）
 # - 実行: uv run python bay.py [--show]   （out/ に底蓋、ネジまわりのテストピース、合わせ確認用のボトムケースの切り出し、
 #   基板の外形 DXF と、KiCad の Edge.Cuts に入れる外形の JSON を書き出す。仮のコントローラー基板と XIAO のモックは
 #   controller_test_board.py）
@@ -98,7 +99,7 @@ PLUG_GAP = 2.0                # くぼみの底: USB-C の口から奥へ。ケ�
                               # 触れずに少し離れるので、その分くぼみを浅くして収納部の奥の壁を残す（要実測）
 
 # J1（基板の手前の端の近く、差し込み口は手前）に挿したプラグとケーブルの溝: 収納部の手前の壁から手前へ掘り込み、
-# 上は床を抜いてボトムケースの内側の空間までつなげる（収納部と同じく天井を作らない）。平面形は J1 の中心（基板の中心）
+# 上は床を抜いてボトムケースの内側の空間までつなげる（天井を作らない）。平面形は J1 の中心（基板の中心）
 # に合わせた長方形で、手前の角を丸める。手前の面は底蓋に垂直。底は基板の下面の高さで、それより下は収納部の手前の壁を
 # そのまま残す（底蓋の開口の形は変えない）
 J1_GROOVE_W = 20.0            # 溝の幅（x）。J1（幅約 14）+ 両側 3
@@ -111,6 +112,18 @@ J1_GROOVE_R = 1.5             # 溝の手前の角の丸め
 # 0.1 下の高さで達する（印刷の向きでは下向きの 45° の斜面なので、サポートは要らない）
 NAIL_W = 8.0                  # 切り欠きの幅（x）
 NAIL_DEPTH = LID_T + STANDOFF - 0.1  # 底面での奥行き（収納部の手前の壁から手前へ）= 斜面が壁の面に達する高さ
+
+# 収納部の天井: 床の上面から CEILING_T 下の水平な板。天井の開口（floor_opening）は、J1 のケーブルの通り道とマトリクス基板の
+# J1 のための長方形: 左右はマトリクスの J1 の左端 - FLOOR_OPEN_MARGIN から J1 の溝の右端まで、奥はマトリクスの J1 の
+# 奥の端 + FLOOR_OPEN_MARGIN、手前は収納部の手前の壁まで。マトリクスの J1 は下端が床の上面とほぼ同じ高さにあり、
+# ケーブルは床の上面とソケットの下面の間（1.1 mm）を通れないので、溝から収納部に入って開口からマトリクスの J1 へ上がる。
+# J2 に挿したプラグもこの範囲に入る
+CEILING_T = 1.2               # 天井の厚さ
+CEILING_Z = B.FLOOR_Z - CEILING_T  # 天井の下面（ボトムケースの z）
+FLOOR_OPEN_MARGIN = 1.0       # 天井の開口: マトリクスの J1 の本体から外へ
+FLOOR_OPEN_R = 2.0            # 天井の開口の角の丸め
+J2_H = 4.85                   # J2（PH 横型）の高さ: 基板の上面から（KiCad の 3D モデル）
+CEILING_CLEAR = 0.2           # 天井の下に残る部品と天井のすき間
 
 BATTERY = (31.0, 21.0, 6.0)   # 電池（幅 x、奥行き v、厚さ）。実測値
 BATTERY_GAP = 2.7             # 電池の右端と基板の左端の間（リード線を通す）
@@ -459,8 +472,9 @@ assert LID_T - PIN_RECESS_DEPTH >= 0.6
 def case_cuts():
     """ボトムケースから削る形状。"""
     cuts = []
-    # 収納部（底蓋の開口から、床を抜いてボトムケースの内側の空間まで）
-    cuts.append(lid_region(LID_GAP) & prism(Rectangle(1000, 1000), -30, B.HEIGHT + 1))
+    # 収納部（底蓋の開口から天井まで）と、天井の開口
+    cuts.append(lid_region(LID_GAP) & prism(Rectangle(1000, 1000), -30, CEILING_Z))
+    cuts.append(lid_region(LID_GAP) & prism(floor_opening(), CEILING_Z - 1, B.HEIGHT + 1))
     # 奥の壁を抜けてケーブルのプラグが通る穴（USB-C の口の先が入る。収納部の中から、くぼみまで）と、面取りの斜面のくぼみ
     # （底は口から PLUG_GAP 奥）。くぼみは USB-C の口に合わせて決まるので、基板を奥へ寄せた分だけ浅くなり、収納部とくぼみの
     # 間の壁が厚くなる
@@ -473,6 +487,18 @@ def case_cuts():
     cuts.append(j1_groove())
     cuts.append(nail_notch())
     return cuts
+
+
+def floor_opening():
+    """収納部の天井の開口の平面形（収納部の範囲で切る前の、角を丸めた長方形）。マトリクスの J1 の位置は
+    matrix_mock（配置スクリプトの設定）から読む（matrix_mock は bay を使うので、ここで読み込む）。"""
+    import matrix_mock as M
+    jx0 = M.J1_AT[0] + M.J1_BODY[0] - FLOOR_OPEN_MARGIN
+    jy1 = M.J1_AT[1] + M.J1_BODY[3] + FLOOR_OPEN_MARGIN
+    x0, x1 = jx0, BOARD_CX + J1_GROOVE_W / 2
+    y0, y1 = LID_FRONT_Y - 5, jy1   # 手前は収納部の手前の壁より先まで（収納部の範囲で切る）
+    rect = Pos((x0 + x1) / 2, (y0 + y1) / 2) * Rectangle(x1 - x0, y1 - y0)
+    return fillet(rect.vertices(), FLOOR_OPEN_R).faces()[0]
 
 
 def nail_x():
@@ -488,6 +514,39 @@ def nail_notch():
     pts = [(x0, vf - d - 1, -1), (x0, vf + 1, -1), (x0, vf + 1, d + 1)]
     face = Face(Wire(Polyline(*pts, close=True).edges()))
     return FRAME * extrude(face, NAIL_W, dir=(1, 0, 0))
+
+
+def ceiling_clearance():
+    """天井の下に残る部品（電池、XIAO、USB-C、J1、J2）の上面と天井の下面の最小のすき間。上面を細かくたどり、天井の
+    開口の中（角の丸めの分だけ内側に縮めた長方形の中）にある点は除く。"""
+    bb = floor_opening().bounding_box()
+    r = FLOOR_OPEN_R
+
+    def in_opening(p):
+        return bb.min.X + r <= p.X <= bb.max.X - r and bb.min.Y + r <= p.Y <= bb.max.Y - r
+
+    vt, wt = board_v_top(), LID_T + STANDOFF + BOARD_T
+    bo = battery_outline().bounding_box()
+    jy = vt - 24.375   # J1 の原点（KiCad の配置）
+    tops = [  # (x0, x1, v0, v1, 上面の w)
+        (bo.min.X, bo.max.X, v_of(bo.min.Y), v_of(bo.max.Y), LID_T + BATTERY[2]),
+        (BOARD_CX - XIAO_W / 2, BOARD_CX + XIAO_W / 2, vt - XIAO_D, vt, wt + XIAO_PCB_T + XIAO_EDGE_PARTS),
+        (BOARD_CX - USB_W / 2, BOARD_CX + USB_W / 2, vt - 7, vt + USB_OVERHANG, usb_axis_w() + USB_H / 2),
+        (BOARD_CX - 7.4, BOARD_CX + 7.4, jy - 3.3, jy + 3.3, wt + 2.95),      # J1（コートヤード）
+        (BOARD_CX - 18, BOARD_CX - 11, vt - 18.3, vt - 9.6, wt + J2_H),     # J2（コートヤード）
+    ]
+    gap = 99
+    for x0, x1, v0, v1, w in tops:
+        for i in range(11):
+            for j in range(11):
+                p = FRAME.from_local_coords((x0 + (x1 - x0) * i / 10, v0 + (v1 - v0) * j / 10, w))
+                if not in_opening(p):
+                    gap = min(gap, CEILING_Z - p.Z)
+    return gap
+
+
+# 天井の下に残る部品が天井に当たらないこと（マトリクスの J1 は、開口の範囲を J1 から決めているので開口の中にある）
+assert ceiling_clearance() >= CEILING_CLEAR
 
 
 # 爪の切り欠きが、手前のリブ（電池の枠）の右端と J1 の溝から 1 mm 以上離れていること（爪が底蓋の内面に届く所）

@@ -24,7 +24,6 @@ from pathlib import Path
 
 from build123d import GeomType, Pos, Rectangle, Rot, Solid, extrude
 
-import bay
 import bottom as B
 import gasket as G
 import layout as L
@@ -182,6 +181,7 @@ def matrix_mock():
 
 
 if __name__ == "__main__":
+    import bay   # bay は天井の開口の位置をこのモジュール（J1 の位置）から読むので、ここで読み込む
     board, sw = matrix_mock()
     out = Path(__file__).parent / "out"
     out.mkdir(exist_ok=True)
