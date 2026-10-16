@@ -322,9 +322,11 @@ def lid_region(grow=0.0):
 
 
 def battery_outline(grow=0.0):
+    """電池の外形（FRAME の x, v の長方形）。手前の端は v_of(BATTERY_FRONT_Y)。grow だけ外へ広げる。
+    電池と枠は底蓋に垂直に立つので、FRAME の面に描いて w の向きに押し出す。"""
     l, w, _ = BATTERY
-    yc = BATTERY_FRONT_Y + w / 2 * math.cos(A)
-    return Pos(BATTERY_X0 + l / 2, yc) * Rectangle(l + 2 * grow, w * math.cos(A) + 2 * grow)
+    vc = v_of(BATTERY_FRONT_Y) + w / 2
+    return Pos(BATTERY_X0 + l / 2, vc) * Rectangle(l + 2 * grow, w + 2 * grow)
 
 
 def rib_x_front():
@@ -442,21 +444,21 @@ def lid():
         body += local_cylinder(x, v, LID_T - 0.1, LID_T + STANDOFF, BOSS_D)
         body -= local_cylinder(x, v, LID_T + STANDOFF - PILOT_DEPTH, LID_T + STANDOFF + 0.1, PILOT_D)
 
-    # 電池の枠。左と手前は、リブとの間を埋めて底蓋の端までつなげる。左のボスに近づく所は、リブと同じく 45° の斜面で
-    # 厚肉の高さまで下げ、角の台とつなげる。切り欠きは 2 つ:
+    # 電池の枠（底蓋に垂直に立つ。平面形は FRAME の x, v で描く）。左と手前は、リブとの間を埋めて底蓋の端までつなげる。
+    # 左のボスに近づく所は、リブと同じく 45° の斜面で厚肉の高さまで下げ、角の台とつなげる。切り欠きは 2 つ:
     # - 基板側の辺の奥の角から BATTERY_LEAD_GAP（電池のリード線を奥の角から基板の側へ出す）
     # - 奥の辺の中央に幅 BATTERY_PRY_GAP（電池を外すときにスパッジャーを差し込む）
     t, h, c = BATTERY_FRAME
-    outer = battery_outline(c + t).bounding_box()
+    outer = battery_outline(c + t).bounding_box()   # Y は FRAME の v
     inner = battery_outline(c).bounding_box()
-    x0, y0 = LID_X[0] - 1, LID_FRONT_Y - 1
-    block = Pos((x0 + outer.max.X) / 2, (y0 + outer.max.Y) / 2) * Rectangle(outer.max.X - x0, outer.max.Y - y0)
+    x0, v0 = LID_X[0] - 1, v_of(LID_FRONT_Y) - 1
+    block = Pos((x0 + outer.max.X) / 2, (v0 + outer.max.Y) / 2) * Rectangle(outer.max.X - x0, outer.max.Y - v0)
     ring = block - battery_outline(c)
-    ya, yb = inner.max.Y - BATTERY_LEAD_GAP, outer.max.Y + 1
-    lead_gap = Pos((inner.max.X + outer.max.X + 1) / 2, (ya + yb) / 2) * Rectangle(outer.max.X + 1 - inner.max.X, yb - ya)
+    va, vb = inner.max.Y - BATTERY_LEAD_GAP, outer.max.Y + 1
+    lead_gap = Pos((inner.max.X + outer.max.X + 1) / 2, (va + vb) / 2) * Rectangle(outer.max.X + 1 - inner.max.X, vb - va)
     xc = battery_outline().center().X
-    pry_gap = Pos(xc, (inner.max.Y - 1 + yb) / 2) * Rectangle(BATTERY_PRY_GAP, yb - inner.max.Y + 1)
-    frame = prism(ring - lead_gap - pry_gap) & slab(LID_T - 0.1, LID_T + h) & lid_region()
+    pry_gap = Pos(xc, (inner.max.Y - 1 + vb) / 2) * Rectangle(BATTERY_PRY_GAP, vb - inner.max.Y + 1)
+    frame = (FRAME * Pos(0, 0, LID_T - 0.1) * extrude(ring - lead_gap - pry_gap, h + 0.1)) & lid_region()
     for s in lid_screws_local():
         frame -= boss_flare(*s, RIB_BOSS_CLEAR)
     body += frame
@@ -610,10 +612,10 @@ def ceiling_clearance():
         return bb.min.X + r <= p.X <= bb.max.X - r and bb.min.Y + r <= p.Y <= bb.max.Y - r
 
     vt, wt = board_v_top(), LID_T + STANDOFF + BOARD_T
-    bo = battery_outline().bounding_box()
+    bo = battery_outline().bounding_box()   # Y は FRAME の v
     jy = vt - 24.375   # J1 の原点（KiCad の配置）
     tops = [  # (x0, x1, v0, v1, 上面の w)
-        (bo.min.X, bo.max.X, v_of(bo.min.Y), v_of(bo.max.Y), LID_T + BATTERY[2]),
+        (bo.min.X, bo.max.X, bo.min.Y, bo.max.Y, LID_T + BATTERY[2]),
         (BOARD_CX - XIAO_W / 2, BOARD_CX + XIAO_W / 2, vt - XIAO_D, vt, wt + XIAO_PCB_T + XIAO_EDGE_PARTS),
         (BOARD_CX - USB_W / 2, BOARD_CX + USB_W / 2, vt - 7, vt + USB_OVERHANG, usb_axis_w() + USB_H / 2),
         (BOARD_CX - 7.4, BOARD_CX + 7.4, jy - 3.3, jy + 3.3, wt + 2.95),      # J1（コートヤード）
@@ -635,7 +637,7 @@ assert ceiling_clearance() >= CEILING_CLEAR
 
 # 爪の切り欠きが J1 の溝から 1 mm 以上離れていること。底蓋の側の溝が、電池の枠の手前の壁を削らないこと
 assert nail_x() + NAIL_W / 2 <= BOARD_CX - J1_GROOVE_W / 2 - 1.0
-assert v_of(LID_FRONT_Y) + NAIL_SLOT <= v_of(battery_outline(BATTERY_FRAME[2] + BATTERY_FRAME[0]).bounding_box().min.Y)
+assert v_of(LID_FRONT_Y) + NAIL_SLOT <= battery_outline(BATTERY_FRAME[2] + BATTERY_FRAME[0]).bounding_box().min.Y
 
 
 def j1_groove():
@@ -794,7 +796,7 @@ def dummies():
                      w_b + BOARD_T, w_b + BOARD_T + XIAO_PCB_T + XIAO_EDGE_PARTS)
     wc = usb_axis_w()
     usb = v_prism(SlotOverall(USB_W, USB_H), BOARD_CX, wc, vt - 7, vt + USB_OVERHANG)
-    battery = prism(battery_outline()) & slab(LID_T, LID_T + BATTERY[2])
+    battery = FRAME * Pos(0, 0, LID_T) * extrude(battery_outline(), BATTERY[2])   # 底蓋に垂直に立つ
     return board, xiao, usb, battery
 
 
