@@ -2,14 +2,16 @@
 # - 外形はプレートの外形（タブを除く）を、奥と手前の辺は MATRIX_INSET だけ内側に、左右と右下の斜めの辺は
 #   MATRIX_SIDE_GROW だけ外側にずらしたもの。厚さは KiCad の基板と同じ 1.6
 # - スイッチの穴は KiCad の基板（pcbs/matrix-left/matrix-left.kicad_pcb）のドリルデータから取る（中央の Ø4、
-#   左右の突起の Ø2、ホットスワップソケットのピンの Ø3）。中央の穴はスイッチの軸に少しきつめにはまる大きさにして、
-#   基板がスイッチから抜け落ちないようにする
+#   左右の突起の Ø2、ホットスワップソケットのピンの Ø3）。中央の穴はスイッチの軸にきつめにはまる大きさにして、
+#   基板がスイッチから抜け落ちないようにする（Ø4.1 では印刷したモックからスイッチが簡単に抜けたので Ø3.9 にした）
 # - 裏面に、ホットスワップソケット（Kailh MX）を大まかにかたどった形を付ける。向きはスイッチの 2 つのピンの穴から求める
 #   （R1C3 のように 180° 回したスイッチや、親指のキーの回転もそのまま反映される）
 # - KiCad の基板の座標とプレートの座標の対応: x = X - 50、y = 50 - Y（KiCad の Y は下が正）。スイッチの中心が
 #   plate.keys() と一致することを確かめる
 # - キーの配置スクリプト（scripts/place_matrix.py）の設定（反転するキー FLIP_KEYS と J1 の位置）を読み込んで反映する。
 #   KiCad の基板でスクリプトを実行する前でも後でも、同じモックになる（すでに反転しているスイッチはそのまま）
+# - J1 はモックに付けない（組み付けの試しでは、実物のコネクタを両面テープで貼る）。J1 の位置は、ボトムケースの天井の
+#   開口（bay.floor_openings）を決めるのに使う。プレビュー用の形は matrix_j1()
 # - 高さ（ボトムケースの座標）: プレートの上面 24.0 から、MX の規格で基板の上面は 5.0 下
 # - 実行: uv run python matrix_mock.py [--show]   （kicad-cli が必要。out/matrix-mock-l.* を印刷の向き
 #   （基板の上面を下、ソケットが上）で書き出し、KiCad の Edge.Cuts に入れる外形を out/matrix-board-l-outline.json に
@@ -40,7 +42,7 @@ PLATE_TO_PCB = 5.0            # MX: プレートの上面から基板の上面�
 PCB_TOP_Z = G.UPPER_Z + L.Z_OFFSET - PLATE_TO_PCB   # 基板の上面（ボトムケースの座標で 19.0）
 
 CENTER_D = 4.0                # スイッチの中央の穴（KiCad の値）
-CENTER_PRINT_D = 4.1          # 印刷する中央の穴（印刷で細って、スイッチの軸 Ø4.0 に少しきつめにはまる）
+CENTER_PRINT_D = 3.9          # 印刷する中央の穴（スイッチの軸 Ø4.0 より小さく、押し込んできつくはまる）
 HOLE_ALLOWANCE = 0.3          # そのほかの穴の直径に足す量（印刷で細る分）
 
 # ホットスワップソケット（Kailh MX）の大まかな形: スイッチの中心を原点、y は奥が正（スイッチを上から見た向き）。
@@ -156,7 +158,7 @@ def flip_holes(holes):
 
 
 def matrix_j1():
-    """裏面の J1 の大まかな形（基板の裏 z = 0 から下へ）。"""
+    """裏面の J1 の大まかな形（基板の裏 z = 0 から下へ）。プレビュー用（モックには付けない）。"""
     x0, y0, x1, y1 = J1_BODY
     return Pos(J1_AT[0] + (x0 + x1) / 2, J1_AT[1] + (y0 + y1) / 2, -J1_H) * extrude(Rectangle(x1 - x0, y1 - y0), J1_H)
 
@@ -173,7 +175,6 @@ def matrix_mock():
     board = Pos(0, 0, -MATRIX_T) * extrude(board_outline(), MATRIX_T)
     for x, y, angle in sw:
         board += Pos(0, 0, -MATRIX_T) * socket(x, y, angle)
-    board += Pos(0, 0, -MATRIX_T) * matrix_j1()
     for x, y, d in holes:
         dp = CENTER_PRINT_D if abs(d - CENTER_D) < 1e-6 else d + HOLE_ALLOWANCE
         board -= Pos(x, y, -10) * Solid.make_cylinder(dp / 2, 20)
