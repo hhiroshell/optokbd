@@ -184,10 +184,13 @@ SCREW_LEN = 6.0               # ネジの長さ（M2 × 6）。先端は底蓋�
 SCREW_CLEAR_D = 2.4           # ネジの通し穴（底蓋とボス）
 SCREW_BOSS_D = 6.4            # ボトムケースのボス
 # ナットの溝: 収納部の内側（左のボスは右、右のボスは左）から横に差し込む。平らな面を手前と奥に向け、溝の幅は二面幅。
-# 底蓋を外すと基板と電池も一緒に外れるので、収納部は空になって溝に手が届く
+# 底蓋を外すと基板と電池も一緒に外れるので、収納部は空になって溝に手が届く。ボトムケースは底面を下にして刷るので、溝の
+# 天井は水平な張り出しになり、中に入ったサポートが取れない。そこで天井を、溝の向き（x）に棟が通る NUT_ROOF_ANGLE の
+# 切妻屋根にして、サポートなしで刷れるようにする（ナットは屋根の下の、高さ NUT_T の平らな部分に入る）
 NUT_AF = 4.2                  # 二面幅（M2 ナット 4.0 mm + 0.2。トップケースのナットのポケットと同じ）
 NUT_T = 1.8                   # 溝の厚さ（M2 ナット 1.6 mm + 0.2）
 NUT_TIP = 0.8                 # ネジの先端がナットの上から出る長さ
+NUT_ROOF_ANGLE = 45.0         # 溝の天井の屋根の傾き（水平から）[度]
 BOSS_CLEAR = 0.5              # ボスと電池のすき間
 BOARD_NOTCH_CLEAR = 0.8       # ボスと基板の切り欠きのすき間（基板は底蓋に平行で高い所ほど奥へずれる分も見込む）
 
@@ -708,18 +711,30 @@ def nut_pocket(x, v, sx):
     nut_top = tip - NUT_TIP
     # 左のボスでは輪郭が時計回りになり、面の法線が下を向くので、押し出す向きを固定する
     face = Face(Wire(Polyline(*pts, close=True).edges()))
-    return FRAME * Pos(x, v, nut_top - NUT_T) * extrude(face, NUT_T, dir=(0, 0, 1))
+    pocket = Pos(x, v, nut_top - NUT_T) * extrude(face, NUT_T, dir=(0, 0, 1))
+    # 天井の切妻屋根: 断面（v-w 面）が二面幅を底辺とする三角形の柱を x の向きに伸ばし、溝の平面形で切る
+    h = nut_roof_h()
+    tri = Face(Wire(Polyline((-20, -NUT_AF / 2, 0), (-20, NUT_AF / 2, 0), (-20, 0, h), close=True).edges()))
+    roof = Pos(x, v, nut_top) * extrude(tri, 40, dir=(1, 0, 0))
+    roof &= Pos(x, v, nut_top) * extrude(face, h, dir=(0, 0, 1))
+    return FRAME * (pocket + roof)
+
+
+def nut_roof_h():
+    """ナットの溝の天井の屋根の高さ（ナットの上面から棟まで）。"""
+    return NUT_AF / 2 * math.tan(math.radians(NUT_ROOF_ANGLE))
 
 
 def add_screw_bosses(case):
     """収納部を削った後のボトムケースに、四隅のボスを足して、ネジの通し穴とナットの溝を開ける。
-    ボス、穴、溝はどれも底蓋に垂直（FRAME の w の向き）。"""
+    ボス、穴、溝はどれも底蓋に垂直（FRAME の w の向き）。通し穴はナットの溝の床まで（その上はナットと、溝の天井の
+    屋根の空間にネジの先端が入る。穴を屋根まで開けると、屋根の斜面に水平な天井の小さな張り出しができる）。"""
     for x, v, sx, sv in lid_screws_local():
         case += boss_solid(x, v, sx, sv)
     tip = SCREW_HEAD[1] + SCREW_LEN
     w0 = LID_T + LID_PAD[1]
     for x, v, sx, _ in lid_screws_local():
-        case -= local_cylinder(x, v, w0 - 1, tip + 0.4, SCREW_CLEAR_D)
+        case -= local_cylinder(x, v, w0 - 1, tip - NUT_TIP - NUT_T + 0.1, SCREW_CLEAR_D)
         case -= nut_pocket(x, v, sx)
     return case
 
@@ -733,8 +748,12 @@ def boss_top_w():
     return min(out)
 
 
-# ネジの通し穴（先端 + 0.4）がボスの上端（床の上面）より下に収まること
-assert SCREW_HEAD[1] + SCREW_LEN + 0.4 <= boss_top_w() - 0.3
+# ナットの溝の屋根の棟が、ボスの上端（床の上面）より下に収まること。ネジ（M2、太さ SCREW_D）の先端が、ネジの外周の
+# 位置での屋根の高さより SCREW_TIP_CLEAR 以上低いこと（ナットの上に出たネジの先端は屋根の下の空間に入る）
+SCREW_D = 2.0                 # ネジの太さ（M2）
+SCREW_TIP_CLEAR = 0.2         # ネジの先端と屋根のすき間
+assert SCREW_HEAD[1] + SCREW_LEN - NUT_TIP + nut_roof_h() <= boss_top_w() - 0.5
+assert NUT_TIP + SCREW_TIP_CLEAR <= (NUT_AF / 2 - SCREW_D / 2) * math.tan(math.radians(NUT_ROOF_ANGLE))
 
 
 def usb_hole_half():
