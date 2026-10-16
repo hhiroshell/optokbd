@@ -84,9 +84,10 @@ BOARD_HOLE_D = 2.2            # 基板の M2 の穴
 BOARD_CORNER_R = 1.0          # 基板の外形の角の丸め（出た角も入った角も）
 BOSS_D, PILOT_D, PILOT_DEPTH = 5.0, 1.6, 2.4  # 台座、M2 タッピングネジ（M2 × 3）の下穴
 # 電池のコネクタ（横型の PH）の足の逃げ: 足は基板を貫通して下へ出て、台座の高さだけでは底蓋に当たるので、底蓋の内面に
-# 2 本の足をまとめて囲む長円の凹みを付ける。左手は J2 を使う（右手の J3 は基板の中心に対して J2 と左右対称の位置にあり、
-# 鏡像の底蓋で同じく逃げられる）
-BATTERY_PINS = [(-15.505, -11.495), (-13.505, -11.495)]  # J2 の足（基板の座標。KiCad の配置から）
+# コネクタごとに 2 本の足をまとめて囲む長円の凹みを付ける。左手は J2、右手は J3 を使うが、基板は左右共通で両方に
+# はんだ付けすることもあるので、J2 と J3 の両方の下に凹みを付ける（右手の底蓋は左手の鏡像なので、そのまま左右が入れ替わる）
+BATTERY_PINS = [((-15.505, -11.495), (-13.505, -11.495)),   # J2 の足（基板の座標。KiCad の配置から）
+                ((13.505, -11.495), (15.505, -11.495))]     # J3 の足
 PIN_RECESS_R = 1.3            # 凹みの半径: 足の中心から（ランド Ø1.2 のはんだと、位置のずれ）
 PIN_RECESS_DEPTH = 1.0        # 凹みの深さ: 底蓋の内面から（足の出る量は要実測）
 
@@ -135,6 +136,19 @@ BATTERY_FRONT_Y = -30.5       # 電池の手前の端（平面の y）
 BATTERY_FRAME = (1.0, 2.0, 0.4)  # 電池の枠（厚さ、高さ、すき間）
 BATTERY_LEAD_GAP = 8.0        # 電池の枠の基板側の辺の切り欠き: 奥の角から手前への長さ（電池のリード線を通す）
 BATTERY_PRY_GAP = 6.0         # 電池の枠の奥の辺の中央の切り欠きの幅（電池を外すときにスパッジャーを差し込む）
+# 電池のケーブルのガイド: 底蓋から立ち上がる低い柱の上に、柱より広い円形の屋根を載せたもの（キノコ形）。ケーブルは屋根の
+# 下に引っ掛け、柱に巻きつけて流す。ケーブルは電池の右上の角から横（基板の側）へ出て、電池の枠の右の外面に沿って奥から
+# 手前へ流し、J2 に挿したプラグ（差し込み口は手前）へ手前から上がる。電池の枠の右の外面と J2 の足の間は基板の下
+# （台座の高さ）を通る。柱は、基板の左の 2 つの角の切り欠き（左手ではボスがなく空いている）の中に置く:
+# - 奥: 電池から横へ出たケーブルを巻きつけて、手前へ向ける
+# - 手前: 下りてきたケーブルを、柱の左（西）から手前（南）を回して右（東）へ折り返し、J2 のプラグへ上げる。ケーブルを
+#   通しやすいよう基板からなるべく離し、屋根は爪の溝の奥の端まで寄せる（爪の先は屋根の下面より低い所を通るので当たらない）
+# 右手の底蓋は鏡像なので、基板の右の 2 つの切り欠きと J3 に合う
+CABLE_POSTS = [(-17.2, -3.6), (-16.8, -25.5)]  # 柱の中心（基板の座標。奥、手前の順）
+POST_D, POST_H = 2.0, 1.5     # 柱の直径、屋根の下のすき間（底蓋の内面から。リード線 1 本分 + 遊び）
+CAP_D, CAP_T = 4.0, 0.7       # 屋根の直径と厚さ。屋根の上面は基板の上面（J2 のプラグの下面）より低い
+GUIDE_CLEAR = 0.5             # 屋根と、基板の切り欠きの縁・台座・爪の溝・電池の枠などのすき間
+CABLE_PASS = 1.2              # 柱と電池の枠の右の外面の間（ケーブルが通る）
 
 # 底蓋のリブ: 左右の辺に沿った壁と、手前の辺の電池側の壁。底蓋に垂直に立ち、上端は底蓋に平行。
 # 外側の面は底蓋の端と同じで、収納部の壁に沿って、底蓋を押し込むときのガイドになる。電池や基板を取り付けやすいよう
@@ -454,6 +468,9 @@ def lid():
         body -= local_cylinder(x, v, -1, SCREW_HEAD[1], SCREW_HEAD[0])
         body -= local_cylinder(x, v, -1, LID_T + LID_PAD[1] + 1, SCREW_CLEAR_D)
 
+    # 電池のケーブルのガイド
+    body += cable_guides()
+
     # 電池のコネクタの足の凹み
     body -= FRAME * Pos(0, 0, LID_T - PIN_RECESS_DEPTH) * extrude(pin_recess_face(), PIN_RECESS_DEPTH + 1)
 
@@ -464,23 +481,77 @@ def lid():
 
 
 def battery_pins_local():
-    """電池のコネクタの足の中心（FRAME の x, v）。"""
+    """電池のコネクタの足の中心（FRAME の x, v）。J2 と J3 の全部の足。"""
     vt = board_v_top()
-    return [(BOARD_CX + x, vt + y) for x, y in BATTERY_PINS]
+    return [(BOARD_CX + x, vt + y) for pair in BATTERY_PINS for x, y in pair]
 
 
 def pin_recess_face():
-    """電池のコネクタの足の凹みの平面形（FRAME の x, v）: 足の並びに沿った長円。"""
-    (x0, v0), (x1, v1) = battery_pins_local()
-    assert abs(v0 - v1) < 1e-9
-    face = Pos(x0, v0) * Circle(PIN_RECESS_R) + Pos(x1, v1) * Circle(PIN_RECESS_R)
-    return face + Pos((x0 + x1) / 2, v0) * Rectangle(abs(x1 - x0), 2 * PIN_RECESS_R)
+    """電池のコネクタの足の凹みの平面形（FRAME の x, v）: コネクタごとに、足の並びに沿った長円。"""
+    vt = board_v_top()
+    face = None
+    for (bx0, by0), (bx1, by1) in BATTERY_PINS:
+        (x0, v0), (x1, v1) = (BOARD_CX + bx0, vt + by0), (BOARD_CX + bx1, vt + by1)
+        assert abs(v0 - v1) < 1e-9
+        f = Pos(x0, v0) * Circle(PIN_RECESS_R) + Pos(x1, v1) * Circle(PIN_RECESS_R)
+        f += Pos((x0 + x1) / 2, v0) * Rectangle(abs(x1 - x0), 2 * PIN_RECESS_R)
+        face = f if face is None else face + f
+    return face
+
+
+def cable_guides():
+    """電池のケーブルのガイド（底蓋に足す立体）: 柱と屋根。FRAME の座標で、底蓋の内面から立ち上げる。"""
+    vt = board_v_top()
+    guides = None
+    for bx, by in CABLE_POSTS:
+        x, v = BOARD_CX + bx, vt + by
+        post = local_cylinder(x, v, LID_T - 0.1, LID_T + POST_H, POST_D)
+        cap = local_cylinder(x, v, LID_T + POST_H, LID_T + POST_H + CAP_T, CAP_D)
+        g = post + cap
+        guides = g if guides is None else guides + g
+    return guides
 
 
 # 凹みが基板の台座から離れていること、底蓋に厚さが残ること
 assert min(math.hypot(px - x, pv - v) for px, pv in battery_pins_local() for x, v in board_holes_local()) \
     >= BOSS_D / 2 + PIN_RECESS_R + 0.5
 assert LID_T - PIN_RECESS_DEPTH >= 0.6
+
+
+def check_cable_guides():
+    """ケーブルのガイドの確かめ（基板の座標で）: 屋根の上面が基板の上面より低いこと。屋根が基板の左の切り欠きの中
+    （基板がある範囲では縁から GUIDE_CLEAR）にあり、奥のリブ、爪の溝、台座、足の凹みから離れていること。柱と電池の枠の
+    間にケーブルが通ること。"""
+    t, h, c = BATTERY_FRAME
+    vt = board_v_top()
+    xn, yfn, ybn = board_notch()
+    x_frame = battery_outline(c + t).bounding_box().max.X - BOARD_CX     # 電池の枠の右の外面
+    x_notch = BOARD_CX - xn                                              # 左の切り欠きの内側の縁（負）
+    x_board = -BOARD_W / 2                                               # 基板の左端
+    y_back_notch, y_front_notch = v_of(ybn) - vt, v_of(yfn) - vt         # 奥の切り欠きの下端、手前の切り欠きの上端
+    y_slot = v_of(LID_FRONT_Y) + NAIL_SLOT - vt                          # 爪の溝の奥の端
+    y_rib = v_of(back_y(BOARD_CX + x_board, LID_BACK + RIB_T)) - vt      # 奥のリブの内面（基板の左端の x）
+    assert LID_T + POST_H + CAP_T < LID_T + STANDOFF + BOARD_T
+    r = CAP_D / 2
+    (xb, yb), (xf, yf) = CABLE_POSTS
+    for x, y in CABLE_POSTS:
+        assert x + r <= x_notch - GUIDE_CLEAR                    # 切り欠きの内側の縁
+        assert x - POST_D / 2 - x_frame >= CABLE_PASS            # 電池の枠との間をケーブルが通る
+        assert x - r >= x_frame + GUIDE_CLEAR                    # 屋根が電池の枠の上にかからない
+        for hx, hy in [(hx - BOARD_CX, hv - vt) for hx, hv in board_holes_local()]:
+            assert math.hypot(x - hx, y - hy) >= r + BOSS_D / 2 + GUIDE_CLEAR
+        for pair in BATTERY_PINS:
+            for px, py in pair:
+                assert math.hypot(x - px, y - py) >= r + PIN_RECESS_R + GUIDE_CLEAR
+    # 奥の柱: 奥の切り欠きの下端（その手前は基板の下）と、奥のリブの間
+    assert yb - r >= y_back_notch + GUIDE_CLEAR and yb + r <= y_rib - GUIDE_CLEAR
+    # 手前の柱: 手前の切り欠きの上端（その奥は基板の下）と、爪の溝の奥の端の間。爪の先は、ボトムケースの斜面が
+    # 壁の面に達する高さ（NAIL_DEPTH）より低い所を通るので、屋根の下面がそれより高ければ、屋根は溝の真上まで来てよい
+    assert yf + r <= y_front_notch - GUIDE_CLEAR and yf - r >= y_slot - 1e-9
+    assert LID_T + POST_H > NAIL_DEPTH
+
+
+check_cable_guides()
 
 
 def case_cuts():
