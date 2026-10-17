@@ -143,18 +143,23 @@ FLOOR_OPEN_MARGIN = 1.0       # 天井の開口: マトリクスの J1 の本体
 FLOOR_OPEN_R = 2.0            # 天井の開口の角の丸め
 J2_H = 4.85                   # J2（PH 横型）の高さ: 基板の上面から（KiCad の 3D モデル）
 # 電池のケーブルのガイド: 底蓋から立ち上がる低い柱の上に、柱より広い円形の屋根を載せたもの（キノコ形）。ケーブルは屋根の
-# 下に引っ掛け、柱に巻きつけて流す。ケーブルは電池の右上の角から横（基板の側）へ出て、電池の枠の右の外面に沿って奥から
+# 下に引っ掛け、柱に巻きつけて流す。屋根の下面は柱から縁へ 45° で広がる円すいにして、底蓋を外面を下にして刷るときに
+# サポートなしで刷れるようにする（水平な下面だとサポートが外しにくかった）。ケーブルは電池の右上の角から横（基板の側）へ出て、電池の枠の右の外面に沿って奥から
 # 手前へ流し、J2 に挿したプラグ（差し込み口は手前）へ手前から上がる。電池の枠の右の外面と J2 の足の間は基板の下
 # （台座の高さ）を通る。柱は、基板の左の 2 つの角の切り欠き（左手ではボスがなく空いている）の中に置く:
 # - 奥: 電池から横へ出たケーブルを巻きつけて、手前へ向ける
 # - 手前: 下りてきたケーブルを、柱の左（西）から手前（南）を回して右（東）へ折り返し、J2 のプラグへ上げる。ケーブルを
-#   通しやすいよう基板からなるべく離し、屋根は爪の溝の奥の端まで寄せる（爪の先は屋根の下面より低い所を通るので当たらない）
+#   通しやすいよう基板からなるべく離す。屋根の手前の縁は爪の溝の上に出るが、爪の先は屋根の縁の下面より低い所を通る
+#   ので当たらない（底蓋に溝を掘った後でガイドを足すので、屋根は溝で削られない）
+# 柱と屋根は、ケーブルがたるまず、きつすぎもしない太さにする。屋根は切り欠きの内側の縁と電池の枠の右の外面の間に収める
+# （屋根の縁の下面は枠の上面と同じ高さなので、枠に接するところまでは寄せてよい）。2 本の x はそろえる
 # 右手の底蓋は鏡像なので、基板の右の 2 つの切り欠きと J3 に合う
-CABLE_POSTS = [(-17.2, -3.6), (-16.8, -25.5)]  # 柱の中心（基板の座標。奥、手前の順）
-POST_D, POST_H = 2.0, 1.5     # 柱の直径、屋根の下のすき間（底蓋の内面から。リード線 1 本分 + 遊び）
-CAP_D, CAP_T = 4.0, 0.7       # 屋根の直径と厚さ。屋根の上面は基板の上面（J2 のプラグの下面）より低い
+CABLE_POSTS = [(-17.3, -3.5), (-17.3, -25.4)]  # 柱の中心（基板の座標。奥、手前の順）
+POST_D, POST_H = 3.0, 1.0     # 柱の直径、まっすぐな部分の高さ（底蓋の内面から。屋根の下の円すいはその上から始まる）
+CAP_D, CAP_T = 5.0, 0.3       # 屋根の直径と、縁の厚さ（円すいの上の、まっすぐな部分）。屋根の上面は基板の上面（J2 の
+                              # プラグの下面）より低い。屋根の下のすき間は、柱の根元で POST_H、縁で POST_H + 円すいの高さ
 GUIDE_CLEAR = 0.5             # 屋根と、基板の切り欠きの縁・台座・爪の溝・電池の枠などのすき間
-CABLE_PASS = 1.2              # 柱と電池の枠の右の外面の間（ケーブルが通る）
+CABLE_PASS = 1.0              # 柱と電池の枠の右の外面の間（リード線 1 本が通る）
 
 # 底蓋のリブ: 左右の辺に沿った壁と、手前の辺の電池側の壁。底蓋に垂直に立ち、上端は底蓋に平行。
 # 外側の面は底蓋の端と同じで、収納部の壁に沿って、底蓋を押し込むときのガイドになる。電池や基板を取り付けやすいよう
@@ -479,15 +484,15 @@ def lid():
         body -= local_cylinder(x, v, -1, SCREW_HEAD[1], SCREW_HEAD[0])
         body -= local_cylinder(x, v, -1, LID_T + LID_PAD[1] + 1, SCREW_CLEAR_D)
 
-    # 電池のケーブルのガイド
-    body += cable_guides()
-
     # 電池のコネクタの足の凹み
     body -= FRAME * Pos(0, 0, LID_T - PIN_RECESS_DEPTH) * extrude(pin_recess_face(), PIN_RECESS_DEPTH + 1)
 
     # 爪を掛ける溝（手前のリブと電池の枠の前を、底蓋の内面の高さまで削る）
     vf, xn = v_of(LID_FRONT_Y), nail_x()
     body -= local_box(xn - NAIL_W / 2, xn + NAIL_W / 2, vf - 1, vf + NAIL_SLOT, LID_T, LID_T + RIB_H + 1)
+
+    # 電池のケーブルのガイド（手前の屋根は爪の溝の上に出るので、溝を掘った後で足す）
+    body += cable_guides()
     return body
 
 
@@ -517,8 +522,10 @@ def cable_guides():
     for bx, by in CABLE_POSTS:
         x, v = BOARD_CX + bx, vt + by
         post = local_cylinder(x, v, LID_T - 0.1, LID_T + POST_H, POST_D)
-        cap = local_cylinder(x, v, LID_T + POST_H, LID_T + POST_H + CAP_T, CAP_D)
-        g = post + cap
+        w_cone = LID_T + POST_H
+        cone = FRAME * Pos(x, v, w_cone) * Solid.make_cone(POST_D / 2, CAP_D / 2, cap_cone_h())   # 45° の円すい
+        cap = local_cylinder(x, v, w_cone + cap_cone_h(), w_cone + cap_cone_h() + CAP_T, CAP_D)
+        g = post + cone + cap
         guides = g if guides is None else guides + g
     return guides
 
@@ -527,6 +534,11 @@ def cable_guides():
 assert min(math.hypot(px - x, pv - v) for px, pv in battery_pins_local() for x, v in board_holes_local()) \
     >= BOSS_D / 2 + PIN_RECESS_R + 0.5
 assert LID_T - PIN_RECESS_DEPTH >= 0.6
+
+
+def cap_cone_h():
+    """ケーブルのガイドの屋根の下の円すいの高さ（45° で柱の直径から屋根の直径まで広がる）。"""
+    return (CAP_D - POST_D) / 2
 
 
 def check_cable_guides():
@@ -542,13 +554,14 @@ def check_cable_guides():
     y_back_notch, y_front_notch = v_of(ybn) - vt, v_of(yfn) - vt         # 奥の切り欠きの下端、手前の切り欠きの上端
     y_slot = v_of(LID_FRONT_Y) + NAIL_SLOT - vt                          # 爪の溝の奥の端
     y_rib = v_of(back_y(BOARD_CX + x_board, LID_BACK + RIB_T)) - vt      # 奥のリブの内面（基板の左端の x）
-    assert LID_T + POST_H + CAP_T < LID_T + STANDOFF + BOARD_T
+    assert LID_T + POST_H + cap_cone_h() + CAP_T < LID_T + STANDOFF + BOARD_T
     r = CAP_D / 2
     (xb, yb), (xf, yf) = CABLE_POSTS
     for x, y in CABLE_POSTS:
         assert x + r <= x_notch - GUIDE_CLEAR                    # 切り欠きの内側の縁
         assert x - POST_D / 2 - x_frame >= CABLE_PASS            # 電池の枠との間をケーブルが通る
-        assert x - r >= x_frame + GUIDE_CLEAR                    # 屋根が電池の枠の上にかからない
+        assert x - r >= x_frame - 1e-9                           # 屋根が電池の枠の上にかからない（接するのはよい）
+        assert LID_T + POST_H + cap_cone_h() >= LID_T + h - 1e-9 # 屋根の縁の下面が枠の上面より低くない
         for hx, hy in [(hx - BOARD_CX, hv - vt) for hx, hv in board_holes_local()]:
             assert math.hypot(x - hx, y - hy) >= r + BOSS_D / 2 + GUIDE_CLEAR
         for pair in BATTERY_PINS:
@@ -556,10 +569,12 @@ def check_cable_guides():
                 assert math.hypot(x - px, y - py) >= r + PIN_RECESS_R + GUIDE_CLEAR
     # 奥の柱: 奥の切り欠きの下端（その手前は基板の下）と、奥のリブの間
     assert yb - r >= y_back_notch + GUIDE_CLEAR and yb + r <= y_rib - GUIDE_CLEAR
-    # 手前の柱: 手前の切り欠きの上端（その奥は基板の下）と、爪の溝の奥の端の間。爪の先は、ボトムケースの斜面が
-    # 壁の面に達する高さ（NAIL_DEPTH）より低い所を通るので、屋根の下面がそれより高ければ、屋根は溝の真上まで来てよい
-    assert yf + r <= y_front_notch - GUIDE_CLEAR and yf - r >= y_slot - 1e-9
-    assert LID_T + POST_H > NAIL_DEPTH
+    # 手前の柱: 屋根は手前の切り欠きの上端（その奥は基板の下）から離し、柱は爪の溝にかけない。屋根の手前の縁は溝の上に
+    # 出るが、爪の先はボトムケースの斜面が壁の面に達する高さ（NAIL_DEPTH）より低い所を通るので、屋根の縁の下面が
+    # それより高ければよい。屋根の縁は底蓋の手前の端からは離す
+    assert yf + r <= y_front_notch - GUIDE_CLEAR and yf - POST_D / 2 >= y_slot
+    assert LID_T + POST_H + cap_cone_h() > NAIL_DEPTH
+    assert yf - r >= v_of(LID_FRONT_Y) - vt + GUIDE_CLEAR
 
 
 check_cable_guides()
