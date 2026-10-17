@@ -19,7 +19,7 @@ PLAY = 0.1            # 上下方向の遊び（プレートと上下のガス�
 INSET = 0.2           # タブの両側と先端から内側へ
 INNER_CLEARANCE = 0.2  # ケースの内面（ポケットの内側の縁）とのすき間
 
-PILLAR_TOP = B.HEIGHT - L.Z_OFFSET        # ボトムケースの柱の上端（トップケースの座標で 13.5）
+PILLAR_TOP = B.HEIGHT - L.Z_OFFSET        # ボトムケースの柱の上端（トップケースの座標で 13.1）
 STACK = T.SLOT_TOP - PILLAR_TOP           # 柱の上からポケットの天井まで（6.5）
 THICKNESS = (STACK - PLATE_T - PLAY) / 2  # 2.4
 LOWER_Z = PILLAR_TOP

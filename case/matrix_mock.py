@@ -40,7 +40,11 @@ MATRIX_SIDE_GROW = 0.3        # 外形の左右と右下の斜めの辺: プレ�
                               # R1〜R3 の C6）のはんだパッドを基板端から 0.5 mm 以上離す。この 3 辺にはボトムケースの
                               # 壁がなく、トップケースの内面はプレートから L.TOP_CAVITY["side"] 外にある
 PLATE_TO_PCB = 5.0            # MX: プレートの上面から基板の上面まで
-PCB_TOP_Z = G.UPPER_Z + L.Z_OFFSET - PLATE_TO_PCB   # 基板の上面（ボトムケースの座標で 19.0）
+PCB_TOP_Z = G.UPPER_Z + L.Z_OFFSET - PLATE_TO_PCB   # 基板の上面（ボトムケースの座標で 18.6）
+CASE_FOAM_T = 2.0             # 基板とボトムケースの床の間に入れるフォームの厚さ（ソケットとダイオードの穴つき）
+
+# 基板の下面とボトムケースの床の上面の間にフォームが入り、ふだんは基板に触れないすき間が残ること
+assert PCB_TOP_Z - MATRIX_T - B.FLOOR_Z - CASE_FOAM_T >= 0.4
 
 CENTER_D = 4.0                # スイッチの中央の穴（KiCad の値）
 CENTER_PRINT_D = 3.9          # 印刷する中央の穴（スイッチの軸 Ø4.0 より小さく、押し込んできつくはまる）
