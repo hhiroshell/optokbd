@@ -15,7 +15,8 @@
 # - 高さ（ボトムケースの座標）: プレートの上面 24.0 から、MX の規格で基板の上面は 5.0 下
 # - 実行: uv run python matrix_mock.py [--show]   （kicad-cli が必要。out/matrix-mock-l.* を印刷の向き
 #   （基板の上面を下、ソケットが上）で書き出し、KiCad の Edge.Cuts に入れる外形を out/matrix-board-l-outline.json に
-#   書き出す。--show でボトムケース、底蓋、コントローラーと組み付けた状態を表示）
+#   書き出す。スイッチの穴のきつさを試す 1 キー分のテストピースを out/switch-test.* に書き出す。--show でボトムケース、
+#   底蓋、コントローラーと組み付けた状態を表示）
 import json
 import math
 import re
@@ -181,6 +182,25 @@ def matrix_mock():
     return board, sw
 
 
+SWITCH_TEST_KEY = (9.53, -17.14)   # スイッチの穴のテストピースにするキー（R0C0。反転していない）
+
+
+def switch_test():
+    """スイッチの穴のきつさを試すテストピース: モックから 1 キー分（1U の 19.05 mm 角）を切り出した板。穴はモックと同じ
+    （KiCad のドリルデータから、中央は CENTER_PRINT_D、そのほかは + HOLE_ALLOWANCE）。ソケットの形は付けない。
+    キーの中心を原点に置いた、基板の上面が z = 0 の形（裏面が下）。"""
+    kx, ky = SWITCH_TEST_KEY
+    holes = flip_holes(kicad_holes())
+    angle = next(a for x, y, a in switches(holes) if math.hypot(x - kx, y - ky) < 0.01)
+    assert abs(angle) < 0.1
+    piece = Pos(0, 0, -MATRIX_T) * extrude(Rectangle(19.05, 19.05), MATRIX_T)
+    for x, y, d in holes:
+        if abs(x - kx) <= 19.05 / 2 and abs(y - ky) <= 19.05 / 2:
+            dp = CENTER_PRINT_D if abs(d - CENTER_D) < 1e-6 else d + HOLE_ALLOWANCE
+            piece -= Pos(x - kx, y - ky, -10) * Solid.make_cylinder(dp / 2, 20)
+    return piece
+
+
 if __name__ == "__main__":
     import bay   # bay は天井の開口の位置をこのモジュール（J1 の位置）から読むので、ここで読み込む
     board, sw = matrix_mock()
@@ -188,6 +208,8 @@ if __name__ == "__main__":
     out.mkdir(exist_ok=True)
     # 印刷の向き: 基板の上面を下にする（x 軸まわりに 180° 回す）
     bay.export([("matrix-mock-l", Rot(180, 0, 0) * board)], out / "matrix-mock-l")
+    # スイッチの穴のテストピース（モックと同じく、基板の上面を下にする）
+    bay.export([("switch-test", Rot(180, 0, 0) * switch_test())], out / "switch-test")
     (out / "matrix-board-l-outline.json").write_text(json.dumps(board_outline_segments()))
     print(f"switches = {len(sw)}, rotated = {[round(a, 1) for *_, a in sw if abs(a) > 0.1]}")
     print(f"board z (bottom case) = {PCB_TOP_Z - MATRIX_T:.2f}..{PCB_TOP_Z:.2f}, socket bottom = {PCB_TOP_Z - MATRIX_T - SOCKET_H:.2f}")
