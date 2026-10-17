@@ -13,7 +13,8 @@
 #   同じ。床の上面は水平なので、天井は手前ほど薄い。ボトムケースは傾いた底面を下にして印刷するので、天井は印刷の向きでは
 #   水平な張り出しになり、専用のサポート材で支える。天井には、J1 のケーブルの溝からマトリクス基板の J1 までの範囲と、
 #   USB-C の上に開口を残す（floor_openings）
-# - 実行: uv run python bay.py [--show]   （out/ に底蓋、ネジまわりのテストピース、合わせ確認用のボトムケースの切り出し、
+# - 実行: uv run python bay.py [--show]   （out/ に底蓋、ネジまわりのテストピース、ナットの溝だけのテストピース、
+#   合わせ確認用のボトムケースの切り出し、
 #   基板の外形 DXF と、KiCad の Edge.Cuts に入れる外形の JSON を書き出す。仮のコントローラー基板と XIAO のモックは
 #   controller_test_board.py）
 import json
@@ -192,8 +193,10 @@ SCREW_BOSS_D = 6.4            # ボトムケースのボス
 # 底蓋を外すと基板と電池も一緒に外れるので、収納部は空になって溝に手が届く。ボトムケースは底面を下にして刷るので、溝の
 # 天井は水平な張り出しになり、中に入ったサポートが取れない。そこで天井を、溝の向き（x）に棟が通る NUT_ROOF_ANGLE の
 # 切妻屋根にして、サポートなしで刷れるようにする（ナットは屋根の下の、高さ NUT_T の平らな部分に入る）
-NUT_AF = 4.2                  # 二面幅（M2 ナット 4.0 mm + 0.2。トップケースのナットのポケットと同じ）
-NUT_T = 1.8                   # 溝の厚さ（M2 ナット 1.6 mm + 0.2）
+NUT_AF = 3.95                 # 溝の幅（M2 ナットの二面幅 4.0 mm より 0.05 狭い。印刷で溝が細る分と合わせて、押し込んで
+                              # きつくはまり、重力で落ちない。4.2 では簡単に落ち、4.0 でちょうど良かったので少しだけ締めた。
+                              # 高さ方向は層の厚さ単位でしか刷れないので、きつさは横方向（幅）で調整する）
+NUT_T = 1.6                   # 溝の厚さ（M2 ナットの 1.6 mm と同じ。もとは 1.8）
 NUT_TIP = 0.8                 # ネジの先端がナットの上から出る長さ
 NUT_ROOF_ANGLE = 45.0         # 溝の天井の屋根の傾き（水平から）[度]
 BOSS_CLEAR = 0.5              # ボスと電池のすき間
@@ -766,9 +769,9 @@ def boss_top_w():
 # ナットの溝の屋根の棟が、ボスの上端（床の上面）より下に収まること。ネジ（M2、太さ SCREW_D）の先端が、ネジの外周の
 # 位置での屋根の高さより SCREW_TIP_CLEAR 以上低いこと（ナットの上に出たネジの先端は屋根の下の空間に入る）
 SCREW_D = 2.0                 # ネジの太さ（M2）
-SCREW_TIP_CLEAR = 0.2         # ネジの先端と屋根のすき間
+SCREW_TIP_CLEAR = 0.15        # ネジの先端と屋根のすき間（ネジの外周の位置で。先端の面取りの分、実際はもっと空く）
 assert SCREW_HEAD[1] + SCREW_LEN - NUT_TIP + nut_roof_h() <= boss_top_w() - 0.5
-assert NUT_TIP + SCREW_TIP_CLEAR <= (NUT_AF / 2 - SCREW_D / 2) * math.tan(math.radians(NUT_ROOF_ANGLE))
+assert NUT_TIP + SCREW_TIP_CLEAR <= (NUT_AF / 2 - SCREW_D / 2) * math.tan(math.radians(NUT_ROOF_ANGLE)) + 1e-9
 
 
 def usb_hole_half():
@@ -881,6 +884,30 @@ def screw_test(case, lid_part):
     cx, cy = boss_center(x, v)
     region = Pos(cx - 4, cy + 2) * Rectangle(20, 18)
     return case & prism(region, -30, B.FLOOR_Z), lid_part & prism(region)
+
+
+NUT_TEST_MARGIN = 1.2         # ナットの溝のテストピース: 溝とネジ穴のまわりに残す肉
+
+
+def nut_test(case):
+    """ナットの溝のはまり具合だけを試すテストピース: 右手前のボスの、ナットの溝（屋根を含む）とネジ穴のまわりだけを
+    底蓋の座標の箱とボスの平面形で切り出したもの（ボスの外の収納部の天井は張り出しになるので含めない。溝の口はボスの
+    丸い面に開く）。底面はボスの下面（底蓋の厚肉の上面に当たる面、底蓋と平行）。ボトムケースと同じく屋根が上になる
+    向きで刷れるよう、底面を z = 0 に寝かせた形も返す: (ケースの中の位置の形, 印刷の向きの形)。"""
+    x, v, sx, sv = [s for s in lid_screws_local() if s[2] > 0 and s[3] < 0][0]
+    m = NUT_TEST_MARGIN
+    reach = SCREW_BOSS_D / 2 + 2.0                 # 溝の口（nut_pocket と同じ）
+    r = NUT_AF / math.sqrt(3)                      # 六角形の頂点（壁の側）
+    x0, x1 = (x - reach, x + r + m) if sx > 0 else (x - r - m, x + reach)
+    v0, v1 = v - NUT_AF / 2 - m, v + NUT_AF / 2 + m
+    w0 = LID_T + LID_PAD[1]                        # ボスの下面
+    apex = SCREW_HEAD[1] + SCREW_LEN - NUT_TIP + nut_roof_h()     # 屋根の棟
+    w1 = min(apex + m, boss_top_w())               # 棟の上に m（ボスの上端まで）
+    assert w1 - apex >= 0.6
+    footprint = FRAME * Pos(0, 0, w0 - 1) * extrude(corner_footprint(x, v, sx, sv, SCREW_BOSS_D / 2), w1 - w0 + 2)
+    piece = case & local_box(x0, x1, v0, v1, w0, w1) & footprint
+    flat = Pos(-x, -v, -w0) * FRAME.to_local_coords(piece)
+    return piece, flat
 
 
 FIT_TEST_MARGIN = 6.0         # 合わせ確認用の切り出し: 底蓋の範囲から手前と左右へ広げる量
@@ -998,6 +1025,7 @@ if __name__ == "__main__":
     case_piece, lid_piece = screw_test(case, lid_part)
     export([("screw-test-case", case_piece), ("screw-test-lid", Pos(0, -25, 0) * lid_piece)], out / "screw-test-l")
     export([("bay-fit-test-case", fit_test(case))], out / "bay-fit-test-l")
+    export([("nut-test", nut_test(case)[1])], out / "nut-test-l")
     export_board_dxf(out / "controller-board-l.dxf")
     # KiCad の Edge.Cuts に入れる外形（scripts/set_edge_cuts.py で読む）
     (out / "controller-board-outline.json").write_text(json.dumps(board_outline_segments()))
