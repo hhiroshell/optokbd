@@ -1,5 +1,5 @@
 # トップケース（左手）。v0.2.0: plate/plate_left.dxf のプレートに合わせたもの。
-# - 座標はプレート DXF と同じ（y は奥が正）。z = 0 が下端、z = 23 が上面
+# - 座標はプレート DXF と同じ（y は奥が正）。z = 0 が下端、z = 22.6 が上面
 # - 平面形はすべてプレートの外形からのオフセット（layout.py）。作り方は v0.1.0（FreeCAD 版）を踏襲
 # - 完全無線化に合わせて、v0.1.0 にあった Pro Micro の切り欠き・コネクタのポケット・TRRS の穴はない
 # - 実行: uv run python top.py [--show]   （out/ に STEP / STL / 3MF を書き出す。--show で OCP CAD Viewer に表示）
@@ -17,8 +17,9 @@ import layout as L
 import plate as P
 from outline import on_curve, path_face, plan_corners, plan_curves
 
-HEIGHT = 23.0
-CAVITY_TOP = 17.6       # 内側の空間（ボトムケースの床の上）の高さ。ここから上面までがベゼル（厚さ 5.4）。
+HEIGHT = 22.6           # 上面。ベゼルの厚さ 5.0。プレートを 0.4 下げた分だけ 23.0 から下げて、プレートの上面からの高さを
+                        # その前（5.5）に戻した（ガスケットのポケットの天井の上に 3.0、上面の面取りの斜面の下に 2.0 残る）
+CAVITY_TOP = 17.6       # 内側の空間（ボトムケースの床の上）の高さ。ここから上面までがベゼル（厚さ 5.0）。
                         # プレートの上面（17.1、gasket.py）から PLATE_TOP_CLEAR 上
 PLATE_TOP_CLEAR = 0.5   # ベゼルの下面とプレートの上面のすき間（gasket.py で確かめる）
 INNER_TOP = 11.0        # 外壁の内面（ボトムケースを囲む部分）の高さ。ここが段差になり、ボトムケースの下げた壁の上端が当たる
