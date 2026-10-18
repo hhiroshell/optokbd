@@ -8,8 +8,8 @@ import sys
 from pathlib import Path
 
 from build123d import (
-    Axis, Circle, Face, Kind, Mesher, Plane, Polyline, Pos, RectangleRounded, Rot, Solid, Vector, Wire,
-    export_step, export_stl, extrude, offset,
+    Axis, Box, Circle, Compound, Face, Kind, Mesher, Plane, Polyline, Pos, Rectangle, RectangleRounded, Rot, Solid, Vector,
+    Wire, export_step, export_stl, extrude, offset,
 )
 
 import bottom as B
@@ -31,6 +31,21 @@ CHAMFER = 3.0           # 上面の外周（奥、手前左、右下の直線）
 NUT_Z = (15.0, 16.8)    # ナットのポケットの高さ（段差 z = 11 から 4 mm 上。ナットが抜け落ちないよう、上下に肉を残す）
 NUT_AF = 4.2            # ナットのポケットの二面幅（M2 ナット 4.0 mm + 0.2）
 HOLE_TOP = 18.0         # ネジ穴の深さ（ナットの上に 1.2 mm）
+# ナットのポケットの天井（上面を下にして刷るので、ナットが当たる z = NUT_Z[0] の面が印刷の天井になる）の作り方。サポートを
+# 使わず、幅 4.2 の天井をブリッジで刷るための形（ネジ穴があると、ブリッジの線が穴の縁で途切れて垂れる）:
+#   "round"    : ネジ穴をそのまま通す（今まで。サポートが要る）
+#   "stepped"  : 段付きブリッジ。天井の 1 層目は穴の幅の帯（ブリッジの向き＝溝の幅の向きに沿う）を空け、2 層目は帯を直角に
+#                渡して穴の位置に四角を残し、3 層目から丸い穴にする
+#   "membrane" : 捨て層。ネジ穴を天井の 1 層手前で止め、穴のない膜をブリッジで渡す。印刷後に膜を Ø2 のドリルで抜く
+NUT_CEILING = "round"
+NUT_LAYER = 0.2         # 印刷の層の厚さ（NUT_Z[0] は上面から層の厚さの整数倍の位置にあること）
+
+
+def _on_layer(d):
+    return abs(d / NUT_LAYER - round(d / NUT_LAYER)) < 1e-6
+
+
+assert _on_layer(HEIGHT - NUT_Z[0])
 
 BEZEL_MARGIN = L.PLATE_GAP + 0.05  # キーの開口部: 1U の枠から外へ（18 mm のキーキャップとは 1.275 mm）。角は R0.75。
                             # 内側の空間の壁（プレートから PLATE_GAP）より 0.05 外まで描いて、壁で切る。キーの辺と
@@ -103,6 +118,51 @@ def nut_pocket(screw):
     return Face(Wire(Polyline(*[(p.X, p.Y) for p in pts], close=True).edges()))
 
 
+def screw_cut(screw, ceiling=NUT_CEILING):
+    """ネジまわりの削る形: ナットのポケットとネジ穴。ceiling はポケットの天井の作り方（NUT_CEILING を参照）。"""
+    z0, layer, rh = NUT_Z[0], NUT_LAYER, L.HOLE_R
+    pocket = nut_pocket(screw)
+    # 輪郭が時計回りになり、面の法線が下を向くので、押し出す向きを固定する（固定しないと z0 から下に押し出される）
+    cut = Pos(0, 0, z0) * extrude(pocket, NUT_Z[1] - z0, dir=(0, 0, 1))
+    x, y = screw.pos.X, screw.pos.Y
+    if ceiling == "membrane":
+        cut += Pos(x, y, -1) * Solid.make_cylinder(rh, z0 - layer + 1)
+        cut += Pos(x, y, z0) * Solid.make_cylinder(rh, HOLE_TOP - z0)
+        return cut
+    cut += Pos(x, y, -1) * Solid.make_cylinder(rh, HOLE_TOP + 1)
+    if ceiling == "stepped":
+        t = Vector(-screw.normal.Y, screw.normal.X)   # 溝の幅の向き（ブリッジの向き）
+        at = Pos(x, y) * Rot(0, 0, math.degrees(math.atan2(t.Y, t.X)))
+        strip = pocket & (at * Rectangle(4 * NUT_AF, 2 * rh))   # 1 層目: 穴の幅の帯（ポケットの中だけ）
+        cut += Pos(0, 0, z0 - layer) * extrude(strip, layer, dir=(0, 0, 1))
+        cut += Pos(0, 0, z0 - 2 * layer) * extrude(at * Rectangle(2 * rh, 2 * rh), layer, dir=(0, 0, 1))   # 2 層目: 穴の位置の四角
+    else:
+        assert ceiling == "round", ceiling
+    return cut
+
+
+NUT_TEST_SCREW = 1        # ナットのポケットのテストピースにするネジ（L.screws() の番号。奥の辺の中央。タブから離れている）
+NUT_TEST_MARGIN = 1.5     # テストピース: ポケットの左右（溝の幅の向き）に残す肉
+NUT_TEST_Z = (12.0, 19.0)  # テストピースの高さの範囲（トップケースの z）。上端は印刷のベッドの面になるので、NUT_Z[0] から
+                           # 層の厚さの整数倍だけ上にする
+assert _on_layer(NUT_TEST_Z[1] - NUT_Z[0])
+
+
+def nut_test(ceiling):
+    """ナットのポケットのはまり具合と、天井の刷れ方を試すテストピース: ケースのうち、奥の辺の中央のネジのまわりだけを、
+    ケースの内面（ポケットの口）から外面まで切り出したもの。ケースと同じく上面を下にして刷る向き（z = 0 がベッド）で返す。"""
+    s = L.screws()[NUT_TEST_SCREW]
+    case = build(ceiling)
+    t = Vector(-s.normal.Y, s.normal.X)
+    half = NUT_AF / math.sqrt(3) + NUT_TEST_MARGIN
+    z0, z1 = NUT_TEST_Z
+    box = Pos(s.pos.X, s.pos.Y, (z0 + z1) / 2) * Rot(0, 0, math.degrees(math.atan2(t.Y, t.X))) * Box(2 * half, 20, z1 - z0)
+    piece = case & box
+    # 印刷の向き: ネジの位置を原点に、溝の幅を x に、z を反転して上端 z1 をベッドに
+    flat = Rot(180, 0, 0) * Rot(0, 0, -math.degrees(math.atan2(t.Y, t.X))) * Pos(-s.pos.X, -s.pos.Y, -z1) * piece
+    return flat
+
+
 def wall_cut():
     """下端の切り欠きの断面（YZ 平面上 (y, z)）。"""
     y_front = L.face(L.BOTTOM_OUTER).bounding_box().min.Y   # ボトムケースの最も手前
@@ -122,7 +182,7 @@ def wall_cut():
     ])
 
 
-def build():
+def build(ceiling=NUT_CEILING):
     screws = L.screws()
     case = extrude(L.face(L.TOP_OUTER), HEIGHT)
 
@@ -139,9 +199,7 @@ def build():
 
     # ナットのポケットとネジ穴
     for s in screws:
-        # 輪郭が時計回りになり、面の法線が下を向くので、押し出す向きを固定する（固定しないと NUT_Z[0] から下に押し出される）
-        case -= Pos(0, 0, NUT_Z[0]) * extrude(nut_pocket(s), NUT_Z[1] - NUT_Z[0], dir=(0, 0, 1))
-        case -= Pos(s.pos.X, s.pos.Y, -1) * Solid.make_cylinder(L.HOLE_R, HOLE_TOP + 1)
+        case -= screw_cut(s, ceiling)
 
     # 下端の切り欠き。x 方向に貫通させる
     case -= extrude(Plane.YZ * wall_cut(), FAR, both=True)
@@ -183,6 +241,14 @@ if __name__ == "__main__":
     mesher.add_shape(case)
     mesher.write(out / "top-l.3mf")
     print(f"volume = {case.volume:.2f} mm^3")
+    # ナットのポケットのテストピース: 段付きブリッジと捨て層を並べる（3MF では部品名で区別する）
+    tests = [(f"top-nut-test-{c}", Pos(14 * i, 0, 0) * nut_test(c)) for i, c in enumerate(("stepped", "membrane"))]
+    export_step(Compound([p for _, p in tests]), out / "top-nut-test-l.step")
+    export_stl(Compound([p for _, p in tests]), out / "top-nut-test-l.stl")
+    mesher = Mesher()
+    for name, p in tests:
+        mesher.add_shape(p, part_number=name)
+    mesher.write(out / "top-nut-test-l.3mf")
     if "--show" in sys.argv:
         from ocp_vscode import show
         show(case)
