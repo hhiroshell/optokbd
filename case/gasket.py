@@ -14,7 +14,7 @@ import layout as L
 import plate as P
 import top as T
 
-PLATE_T = 1.6         # プレートの厚さ
+PLATE_T = P.PLATE_T   # プレートの厚さ
 PLAY = 0.1            # 上下方向の遊び（プレートと上下のガスケットを重ねた高さと、収める高さの差）
 INSET = 0.2           # タブの両側と先端から内側へ
 INNER_CLEARANCE = 0.2  # ケースの内面（ポケットの内側の縁）とのすき間

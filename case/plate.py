@@ -1,14 +1,17 @@
 # スイッチプレート（左手）。ケースの平面形はすべてこのプレートの外形から決める。
 # - 座標はプレート DXF のまま（mm、y は上向き＝奥が正、原点はキー配置の原点）
 # - 外形のうちタブを除いた部分は辺の定義として持ち、タブとキーの位置は DXF から読む
+# - 実行: uv run python plate.py   （out/ に印刷用のモック plate-mock-l の STEP / STL / 3MF を DXF から書き出す）
 import math
 from dataclasses import dataclass
 from pathlib import Path
 
 import ezdxf
-from build123d import CenterArc, Face, Line, ThreePointArc, Vector, Wire
+from build123d import CenterArc, Face, Line, Mesher, Pos, ThreePointArc, Vector, Wire, export_step, export_stl, extrude
 
 from outline import plan_face
+
+PLATE_T = 1.6  # 厚さ
 
 PLATE_DXF = Path(__file__).parent.parent / "plate" / "plate_left.dxf"
 OUTLINE_LAYER = "10 OUTLINE"
@@ -135,3 +138,24 @@ def _dist(p, curve):
     v = Vector(p.X, p.Y) - q
     return v.X * d.Y - v.Y * d.X
 
+
+def mock():
+    """印刷用のモック: DXF の外形（タブ込み）を PLATE_T で押し出し、スイッチ穴（14 mm 角）を抜いたもの。下面が z = 0。"""
+    plate = extrude(outline(), PLATE_T)
+    for w in Wire.combine(_dxf_edges(CUTOUT_LAYER)):
+        # 押し出す向きを固定する（輪郭の向きで面の法線が下を向くと、穴が抜けない）
+        plate -= Pos(0, 0, -1) * extrude(Face(w), PLATE_T + 2, dir=(0, 0, 1))
+    return plate
+
+
+if __name__ == "__main__":
+    part = mock()
+    out = Path(__file__).parent / "out"
+    out.mkdir(exist_ok=True)
+    export_step(part, out / "plate-mock-l.step")
+    export_stl(part, out / "plate-mock-l.stl")
+    mesher = Mesher()  # 3D プリンタのスライサー用。単位は mm
+    mesher.add_shape(part)
+    mesher.write(out / "plate-mock-l.3mf")
+    print("tabs: " + ", ".join(f"x {t.x0:.2f}..{t.x1:.2f} ({t.width:.2f})" for t in tabs()))
+    print(f"holes = {len(Wire.combine(_dxf_edges(CUTOUT_LAYER)))}, volume = {part.volume:.2f} mm^3, solids = {len(part.solids())}")
