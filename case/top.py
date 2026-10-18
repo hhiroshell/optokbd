@@ -31,8 +31,14 @@ NUT_Z = (15.0, 16.8)    # ナットのポケットの高さ（段差 z = 11 か�
 NUT_AF = 4.2            # ナットのポケットの二面幅（M2 ナット 4.0 mm + 0.2）
 HOLE_TOP = 18.0         # ネジ穴の深さ（ナットの上に 1.2 mm）
 
-BEZEL_MARGIN = 0.6      # キーの開口部: 1U の枠から外へ（18 mm のキーキャップとは 1.125 mm）。角は R0.6
+BEZEL_MARGIN = L.PLATE_GAP + 0.05  # キーの開口部: 1U の枠から外へ（18 mm のキーキャップとは 1.275 mm）。角は R0.75。
+                            # 内側の空間の壁（プレートから PLATE_GAP）より 0.05 外まで描いて、壁で切る。キーの辺と
+                            # プレートの辺が重なる所（左右、斜め、親指の下）で、開口部が壁とそろい、ベゼルの下面の段差が
+                            # 出ない（ちょうど PLATE_GAP にすると、線が重なって幅のない面が残る）
 BEZEL_ROUND = 0.5       # キーの開口部の内角の丸め
+# 開口部を内側の空間の壁で切らないキー（中心）: R0C3 の奥と R3C3 の左下は、プレートの外形（円弧）がキーの角を切るので、
+# 壁の円弧に合わせず、キーの枠から PLATE_GAP の角の形のまま抜く（上面の板の下で壁をわずかに削る）
+UNCLIPPED_KEYS = [(66.67, -9.53), (61.72, -68.58)]
 
 # 下端の切り欠き: 手前はボトムケースの傾斜した底面に合わせ、奥は円弧で上げる（ボトムケースの奥の面取りを逃がす）
 WALL_CUT_BACK_Z = B.BEVEL_H - L.Z_OFFSET + 0.5   # 奥の端の高さ（6.0）
@@ -43,17 +49,26 @@ FAR = 200.0  # 外形より十分外側
 def bezel():
     """キーの開口部: 各キーの 1U の枠を BEZEL_MARGIN だけオフセットした形（直線と R）の和集合の外周。
     親指キーの下辺は、プレートの親指の下の円弧から BEZEL_MARGIN 外の円弧（各キーの下辺の中点に接する）。
-    内角は丸め、キーの間に囲まれたすき間（行と親指の列の間など）は開口部に含める（上面に浮いた島が残らないように）。"""
-    m = BEZEL_MARGIN
+    内角は丸め、キーの間に囲まれたすき間（行と親指の列の間など）は開口部に含める（上面に浮いた島が残らないように）。
+    内側の空間（TOP_CAVITY）の外へ出る所は、壁にそろえて切る（UNCLIPPED_KEYS を除く）。"""
     keys = P.keys()
     opening = None
     for k in keys:
-        sq = Pos(k.center.X, k.center.Y) * Rot(0, 0, k.angle) * RectangleRounded(19.05 + 2 * m, 19.05 + 2 * m, m)
+        sq = key_square(k, BEZEL_MARGIN)
         opening = sq if opening is None else opening + sq
     opening += thumb_band(keys)
     opening = offset(opening, BEZEL_ROUND, kind=Kind.ARC)
     opening = offset(opening, -BEZEL_ROUND, kind=Kind.ARC)
+    opening = Face(opening.faces()[0].outer_wire()) & L.face(L.TOP_CAVITY)
+    for k in keys:
+        if any((k.center - Vector(*c)).length < 0.05 for c in UNCLIPPED_KEYS):
+            opening += key_square(k, L.PLATE_GAP)
     return Face(opening.faces()[0].outer_wire())
+
+
+def key_square(k, m):
+    """キーの 1U の枠を m だけオフセットした角 R m の形。"""
+    return Pos(k.center.X, k.center.Y) * Rot(0, 0, k.angle) * RectangleRounded(19.05 + 2 * m, 19.05 + 2 * m, m)
 
 
 def thumb_band(keys):
@@ -118,8 +133,7 @@ def build():
     for tab in P.tabs():
         case -= Pos(0, 0, -1) * extrude(ring & L.tab_strip(tab, L.slot_half_width(tab)), SLOT_TOP + 1)
 
-    # キーの開口部。上面の板（CAVITY_TOP から上）だけを抜く。キーに対するオフセットで描いているので、
-    # プレートの外形がキーの角を切る所（R3C3 の左下、R0C3 の上）では内側の空間よりわずかに外へ出る
+    # キーの開口部。上面の板（CAVITY_TOP から上）だけを抜く
     case -= Pos(0, 0, CAVITY_TOP) * extrude(bezel(), HEIGHT - CAVITY_TOP + 1)
 
     # ナットのポケットとネジ穴
