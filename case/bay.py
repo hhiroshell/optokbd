@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 from build123d import (
-    Box, Circle, Compound, Face, GeomType, Line, Mesher, Plane, Polyline, Pos, Rectangle, RectangleRounded, SlotOverall, Solid,
+    Align, Box, Circle, Compound, Face, GeomType, Line, Mesher, Plane, Polyline, Pos, Rectangle, RectangleRounded, SlotOverall, Solid,
     ThreePointArc, Wire,
     export_step, export_stl, extrude, fillet,
 )
@@ -202,6 +202,9 @@ NUT_T = 1.6                   # 溝の厚さ（M2 ナットの 1.6 mm と同じ�
 NUT_TIP = 0.75                # ネジの先端がナットの上から出る長さ（溝を狭くして屋根が低くなった分、ナットを上げて、ネジの
                               # 先端と屋根のすき間を保つ。屋根の棟の高さは NUT_AF 3.95、NUT_TIP 0.8 のときと同じ）
 NUT_ROOF_ANGLE = 45.0         # 溝の天井の屋根の傾き（水平から）[度]
+NUT_ROOF_INSET = 0.2          # 屋根のうち収納部の天井の下面より高い部分は、ボスの内側の面からこれだけ内で止める（屋根の棟は
+                              # 天井の下面より高いので、溝の口まで伸ばすと天井に溝ができる）。天井の下面より低い部分は口まで
+                              # 伸ばす（口の上に薄い壁を残さない）
 BOSS_CLEAR = 0.5              # ボスと電池のすき間
 BOARD_NOTCH_CLEAR = 0.8       # ボスと基板の切り欠きのすき間（基板は底蓋に平行で高い所ほど奥へずれる分も見込む）
 
@@ -721,7 +724,7 @@ def boss_solid(x, v, sx, sv):
     return (FRAME * Pos(0, 0, w0) * extrude(footprint, 30)) & prism(Rectangle(1000, 1000), -30, B.FLOOR_Z)
 
 
-def nut_pocket(x, v, sx):
+def nut_pocket(x, v, sx, sv):
     """ナットの溝: 六角形の外側（壁側）の半分と、そこから収納部の内側へ伸ばした溝を 1 つの多角形で描く
     （六角形と長方形の和にすると、重なった辺が残って 3MF のメッシュが壊れる）。平らな面は手前と奥。"""
     r = NUT_AF / math.sqrt(3)
@@ -733,11 +736,15 @@ def nut_pocket(x, v, sx):
     # 左のボスでは輪郭が時計回りになり、面の法線が下を向くので、押し出す向きを固定する
     face = Face(Wire(Polyline(*pts, close=True).edges()))
     pocket = Pos(x, v, nut_top - NUT_T) * extrude(face, NUT_T, dir=(0, 0, 1))
-    # 天井の切妻屋根: 断面（v-w 面）が二面幅を底辺とする三角形の柱を x の向きに伸ばし、溝の平面形で切る
+    # 天井の切妻屋根: 断面（v-w 面）が二面幅を底辺とする三角形の柱を x の向きに伸ばし、溝の平面形で切る。収納部の天井の
+    # 下面（CEILING_W）より上は、ボスの内側の面から NUT_ROOF_INSET 内までに限る
     h = nut_roof_h()
     tri = Face(Wire(Polyline((-20, -NUT_AF / 2, 0), (-20, NUT_AF / 2, 0), (-20, 0, h), close=True).edges()))
     roof = Pos(x, v, nut_top) * extrude(tri, 40, dir=(1, 0, 0))
     roof &= Pos(x, v, nut_top) * extrude(face, h, dir=(0, 0, 1))
+    keep = Pos(0, 0, nut_top) * extrude(corner_footprint(x, v, sx, sv, SCREW_BOSS_D / 2 - NUT_ROOF_INSET), h)
+    keep += Pos(x, v, nut_top - 1) * Box(40, 40, CEILING_W - nut_top + 1, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    roof &= keep
     return FRAME * (pocket + roof)
 
 
@@ -754,9 +761,9 @@ def add_screw_bosses(case):
         case += boss_solid(x, v, sx, sv)
     tip = SCREW_HEAD[1] + SCREW_LEN
     w0 = LID_T + LID_PAD[1]
-    for x, v, sx, _ in lid_screws_local():
+    for x, v, sx, sv in lid_screws_local():
         case -= local_cylinder(x, v, w0 - 1, tip - NUT_TIP - NUT_T + 0.1, SCREW_CLEAR_D)
-        case -= nut_pocket(x, v, sx)
+        case -= nut_pocket(x, v, sx, sv)
     return case
 
 
