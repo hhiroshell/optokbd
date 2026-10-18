@@ -26,7 +26,7 @@ INNER_TOP = 11.0        # 外壁の内面（ボトムケースを囲む部分）
 SLOT_TOP = 19.6         # ガスケットのポケットの高さ（ボトムケースの柱の上端と同じだけ下げて、ガスケットを挟む
                         # 高さ 6.5 を保つ）
 INNER_BOSS_R = 2.4      # ボトムケースのボスを逃がす円
-CHAMFER = 3.0           # 上面の外周（奥、手前左、右下の直線）の面取り
+CHAMFER = 3.0           # 上面の外周（奥、手前左、親指の下の円弧と直線）の面取り
 
 NUT_Z = (15.0, 16.8)    # ナットのポケットの高さ（段差 z = 11 から 4 mm 上。ナットが抜け落ちないよう、上下に肉を残す）
 NUT_AF = 4.2            # ナットのポケットの二面幅（M2 ナット 4.0 mm + 0.2）
@@ -212,9 +212,10 @@ def build(ceiling=NUT_CEILING):
     # 下端の切り欠き。x 方向に貫通させる
     case -= extrude(Plane.YZ * wall_cut(), FAR, both=True)
 
-    # 上面の外周の面取り（奥、手前左、右下の直線）
+    # 上面の外周の面取り（奥、手前左、親指の下の円弧と直線）
     curves = plan_curves(P.PLAN, L.TOP_OUTER)
-    targets = [curves[i] for i in (P.I_BACK, P.I_FRONT_LEFT, P.I_THUMB_LINE)]
+    # 親指の下の円弧は、両隣と接線でつながっているので指定しなくても面取りが回るが、明示しておく
+    targets = [curves[i] for i in (P.I_BACK, P.I_FRONT_LEFT, P.I_THUMB, P.I_THUMB_LINE)]
     top = case.faces().filter_by(Axis.Z).sort_by(Axis.Z)[-1]
     edges = [e for e in top.edges() if any(on_curve(e.center(), c) for c in targets)]
     case = case.chamfer(CHAMFER, None, edges)
