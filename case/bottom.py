@@ -32,8 +32,11 @@ TILT_SLOPE = math.tan(math.radians(TILT_ANGLE))
 BEVEL_H = 14.0          # USB-C のケーブルのくぼみが面取りの斜面の中に収まる高さ（12 では上の縦の面にはみ出した）。
                         # 奥のネジ頭の穴の座面（FLOOR_Z）を削らないよう、FLOOR_Z - BEVEL_SEAT_CLEAR まで
 BEVEL_SEAT_CLEAR = 0.5
+BEVEL_OVERRUN = 0.1     # 面取りを削る三角形を、外面より外へ延ばす量（奥の壁と稜線が重ならないように）。床の上面より上で外面の外へ
+                        # 張り出したネジのボス（L.BOSS_R）を斜面の延長が削らないよう、延長の先は床の上面より低くする
 BEVEL_W = 6.0
 assert BEVEL_H <= FLOOR_Z - BEVEL_SEAT_CLEAR
+assert BEVEL_H / BEVEL_W * (BEVEL_W + BEVEL_OVERRUN) < FLOOR_Z
 
 FAR = 200.0  # 外形より十分外側
 
@@ -72,12 +75,13 @@ def build():
     case -= extrude(Face(Wire(wedge.edges())), FAR, both=True)
 
     # 奥の下側の面取り。三角形を奥の辺の中心軸まわりに回転させて削る。
-    # 斜面は外周より外まで延長して、奥の壁と稜線が重ならないようにする
+    # 斜面は外周より外まで BEVEL_OVERRUN だけ延長して、奥の壁と稜線が重ならないようにする
     _, (cx, cy), r = P.BACK
     r += L.BOTTOM_OUTER["edge"]
     slope = BEVEL_H / BEVEL_W
     tri = Plane.XZ * Polyline(
-        (r - BEVEL_W, 0), (r + 1, slope * (BEVEL_W + 1)), (r + 1, -FAR), (r - BEVEL_W, -FAR), close=True
+        (r - BEVEL_W, 0), (r + BEVEL_OVERRUN, slope * (BEVEL_W + BEVEL_OVERRUN)), (r + BEVEL_OVERRUN, -FAR),
+        (r - BEVEL_W, -FAR), close=True,
     )
     case -= Pos(cx, cy) * revolve(Face(Wire(tri.edges())), Axis.Z)
 
