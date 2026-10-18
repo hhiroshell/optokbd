@@ -8,7 +8,7 @@ from pathlib import Path
 
 from OCP.Standard import Standard_ConstructionError
 from build123d import (
-    Axis, Circle, Face, GeomType, Mesher, Plane, Polyline, Pos, Rectangle, Solid, Vector, Wire,
+    Align, Axis, Box, Circle, Face, GeomType, Mesher, Plane, Polyline, Pos, Rectangle, Rot, Solid, Vector, Wire,
     export_step, export_stl, extrude, revolve,
 )
 
@@ -101,8 +101,14 @@ def build():
     case = case.fillet(0.5, [e for e in cone.edges() if any(e.is_same(b) for b in bottom.edges())])
 
     # ネジ頭の穴と貫通穴。R1 のフィレットが穴にぶつかると OCC では作れないので、穴はフィレットの後で開ける
+    # 奥のネジ頭の穴は外面より外へはみ出して面取りに抜けるので、穴の中心から外へ穴の直径の幅でまっすぐ延ばして U 字にする
+    # （円のままだと外面の位置で幅が狭まり、抜けの縁がすぼまって見える）
     for s in screws:
         case -= Pos(s.pos.X, s.pos.Y, -1) * Solid.make_cylinder(L.BOSS_R, FLOOR_Z + 1)
+        if s.back:
+            ang = math.degrees(math.atan2(s.normal.Y, s.normal.X))
+            case -= Pos(s.pos.X, s.pos.Y, -1) * Rot(0, 0, ang) * Box(
+                5.0, 2 * L.BOSS_R, FLOOR_Z + 1, align=(Align.MIN, Align.CENTER, Align.MIN))
         case -= Pos(s.pos.X, s.pos.Y, -1) * Solid.make_cylinder(L.HOLE_R, HEIGHT + 2)
 
     # 奥のネジ頭の穴が面取りに抜けたところを R0.5（面取りの高さによっては OCC で作れないので、そのときは丸めない）
