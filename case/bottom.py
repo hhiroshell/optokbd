@@ -6,6 +6,7 @@ import math
 import sys
 from pathlib import Path
 
+from OCP.Standard import Standard_ConstructionError
 from build123d import (
     Axis, Circle, Face, GeomType, Mesher, Plane, Polyline, Pos, Rectangle, Solid, Vector, Wire,
     export_step, export_stl, extrude, revolve,
@@ -27,9 +28,12 @@ TILT_ANGLE = 6.25       # 底面（底蓋の面）の傾き [度]。v0.2.0 の�
                         # 全体の厚みを抑えるため下げた（6° では収納部の天井と、底蓋のネジのボスの高さが足りない）
 TILT_SLOPE = math.tan(math.radians(TILT_ANGLE))
 
-# 奥の下側の面取り: 奥の辺に沿って、外周で高さ 12、内側へ 6 の三角形を回す
-BEVEL_H = 12.0
+# 奥の下側の面取り: 奥の辺に沿って、外周で高さ BEVEL_H、内側へ BEVEL_W の三角形を回す
+BEVEL_H = 14.0          # USB-C のケーブルのくぼみが面取りの斜面の中に収まる高さ（12 では上の縦の面にはみ出した）。
+                        # 奥のネジ頭の穴の座面（FLOOR_Z）を削らないよう、FLOOR_Z - BEVEL_SEAT_CLEAR まで
+BEVEL_SEAT_CLEAR = 0.5
 BEVEL_W = 6.0
+assert BEVEL_H <= FLOOR_Z - BEVEL_SEAT_CLEAR
 
 FAR = 200.0  # 外形より十分外側
 
@@ -97,7 +101,7 @@ def build():
         case -= Pos(s.pos.X, s.pos.Y, -1) * Solid.make_cylinder(L.BOSS_R, FLOOR_Z + 1)
         case -= Pos(s.pos.X, s.pos.Y, -1) * Solid.make_cylinder(L.HOLE_R, HEIGHT + 2)
 
-    # 奥のネジ頭の穴が面取りに抜けたところを R0.5
+    # 奥のネジ頭の穴が面取りに抜けたところを R0.5（面取りの高さによっては OCC で作れないので、そのときは丸めない）
     def on_hole(f, p):
         return all(abs(math.hypot(v.X - p.X, v.Y - p.Y) - L.BOSS_R) < 1e-4 for v in f.vertices())
 
@@ -107,7 +111,10 @@ def build():
     ]
     edges = [e for f in hole_faces for e in f.edges() if e.geom_type not in (GeomType.LINE, GeomType.CIRCLE)]
     if edges:
-        case = case.fillet(0.5, edges)
+        try:
+            case = case.fillet(0.5, edges)
+        except (ValueError, Standard_ConstructionError):
+            pass
 
     # コントローラーの収納部（底蓋の開口、USB-C のプラグの穴とケーブルのくぼみ、底蓋の四隅のネジのボス）
     import bay  # bay は bottom の寸法を使うので、ここで読み込む

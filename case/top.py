@@ -57,7 +57,7 @@ BEZEL_ROUND = 0.5       # キーの開口部の内角の丸め
 UNCLIPPED_KEYS = [(66.67, -9.53), (61.72, -68.58)]
 
 # 下端の切り欠き: 手前はボトムケースの傾斜した底面に合わせ、奥は円弧で上げる（ボトムケースの奥の面取りを逃がす）
-WALL_CUT_BACK_Z = B.BEVEL_H - L.Z_OFFSET + 0.5   # 奥の端の高さ（6.0）
+WALL_CUT_BACK_Z = B.BEVEL_H - L.Z_OFFSET + 0.5   # 奥の端の高さ（8.0）
 
 FAR = 200.0  # 外形より十分外側
 
@@ -168,7 +168,8 @@ def wall_cut():
     y_front = L.face(L.BOTTOM_OUTER).bounding_box().min.Y   # ボトムケースの最も手前
     y0 = y_front + (B.TILT_FRONT_Z - L.Z_OFFSET) / B.TILT_SLOPE   # ボトムケースの底面がトップケースの z = 0 を横切る位置
     bb = L.face(L.TOP_OUTER).bounding_box()
-    y_top, h = bb.max.Y, WALL_CUT_BACK_Z
+    # 円弧の終わり（水平になる所）は外面より外に置く（外面の最も奥の点にちょうど接すると、長さ 0 の辺ができてメッシュが壊れる）
+    y_top, h = bb.max.Y + 1.0, WALL_CUT_BACK_Z
     radius = ((y_top - y0) ** 2 + h * h) / (2 * h)  # (y0, 0) を通り、(y_top, h) で水平になる円弧
     y_ff = bb.min.Y - 20
     z_ff = B.tilt_z(y_ff, y_front) - L.Z_OFFSET

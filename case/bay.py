@@ -609,6 +609,28 @@ def case_cuts():
     return cuts
 
 
+def plug_recess_top_z():
+    """ケーブルのくぼみの上面（平らな部分の両端と中央）が、奥の外面に出る所の z のうち最も高いもの。"""
+    vt, wc = board_v_top(), usb_axis_w()
+    w = wc + PLUG_H / 2
+    v0 = vt + USB_OVERHANG + PLUG_GAP
+    out = []
+    for x in (BOARD_CX - PLUG_W / 2 + PLUG_R, BOARD_CX, BOARD_CX + PLUG_W / 2 - PLUG_R):
+        lo, hi = v0, v0 + 20
+        for _ in range(50):
+            mid = (lo + hi) / 2
+            if FRAME.from_local_coords((x, mid, w)).Y < back_y(x, 0):
+                lo = mid
+            else:
+                hi = mid
+        out.append(FRAME.from_local_coords((x, lo, w)).Z)
+    return max(out)
+
+
+# ケーブルのくぼみが、奥の面取りの斜面の中に収まること（上の縦の面にはみ出さない）
+assert plug_recess_top_z() <= B.BEVEL_H - 0.5
+
+
 def floor_openings():
     """収納部の天井の開口の平面形（収納部の範囲で切る前の、角を丸めた長方形）のリスト。2 つは重なっていて、つながった
     1 つの開口になる: J1 のケーブル・マトリクス基板の J1・J2 の開口と、USB-C の上の開口。マトリクスの J1 の位置は
