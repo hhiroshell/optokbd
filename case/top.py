@@ -139,7 +139,8 @@ def build():
 
     # ナットのポケットとネジ穴
     for s in screws:
-        case -= Pos(0, 0, NUT_Z[0]) * extrude(nut_pocket(s), NUT_Z[1] - NUT_Z[0])
+        # 輪郭が時計回りになり、面の法線が下を向くので、押し出す向きを固定する（固定しないと NUT_Z[0] から下に押し出される）
+        case -= Pos(0, 0, NUT_Z[0]) * extrude(nut_pocket(s), NUT_Z[1] - NUT_Z[0], dir=(0, 0, 1))
         case -= Pos(s.pos.X, s.pos.Y, -1) * Solid.make_cylinder(L.HOLE_R, HOLE_TOP + 1)
 
     # 下端の切り欠き。x 方向に貫通させる
