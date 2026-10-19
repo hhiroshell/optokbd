@@ -8,7 +8,7 @@ from pathlib import Path
 
 from OCP.Standard import Standard_ConstructionError
 from build123d import (
-    Align, Axis, Box, Circle, Face, GeomType, Mesher, Plane, Polyline, Pos, Rectangle, Rot, Solid, Vector, Wire,
+    Align, Axis, Box, Circle, Face, GeomType, Mesher, Plane, Polyline, Pos, Rectangle, Rot, Solid, Vector, Vertex, Wire,
     export_step, export_stl, extrude, revolve,
 )
 
@@ -37,6 +37,15 @@ BEVEL_OVERRUN = 0.1     # 面取りを削る三角形を、外面より外へ延
 BEVEL_W = 6.0
 assert BEVEL_H <= FLOOR_Z - BEVEL_SEAT_CLEAR
 assert BEVEL_H / BEVEL_W * (BEVEL_W + BEVEL_OVERRUN) < FLOOR_Z
+
+# ゴム足（直径 FOOT_D のクッションゴム）の座ぐり。底面（底蓋の外面と同じ傾いた面）に垂直に掘る。位置は底面の座標
+# （bay.FRAME の x と、底面に沿って奥へ v）で、四隅に最も近く、座ぐりの縁が底面の縁・底蓋の開口・ネジ頭の穴の切り欠きから
+# FOOT_EDGE_CLEAR 以上離れる点（0.5 mm 刻みで探した）
+FOOT_D, FOOT_H = 7.9, 2.2   # ゴム足の直径と高さ
+FOOT_CLEAR = 0.25       # ゴム足と座ぐりの縁のすき間（片側）
+FOOT_DEPTH = 0.6        # 座ぐりの深さ（層の厚さ 0.2 の 3 層）。ゴム足は底面から FOOT_H - FOOT_DEPTH（1.6）出る
+FOOT_EDGE_CLEAR = 4.0   # 縁に寄せすぎない（1.5 から内側へ寄せた）
+FOOT_POS = [(9.0, -16.0), (124.5, -16.0), (9.0, -61.0), (120.0, -81.5)]   # 奥の左、奥の右、手前の左、手前の右
 
 FAR = 200.0  # 外形より十分外側
 
@@ -130,7 +139,26 @@ def build():
     import bay  # bay は bottom の寸法を使うので、ここで読み込む
     for cut in bay.case_cuts():
         case -= cut
-    return bay.add_screw_bosses(case)
+    case = bay.add_screw_bosses(case)
+
+    # ゴム足の座ぐり
+    for x, v in FOOT_POS:
+        case -= bay.local_cylinder(x, v, -1, FOOT_DEPTH, FOOT_D + 2 * FOOT_CLEAR)
+    return case
+
+
+def check_feet(case):
+    """ゴム足の座ぐりの縁と、底面の縁（座ぐりを掘る前の底面の輪郭と穴）の最小距離。"""
+    import bay
+    local = bay.FRAME.to_local_coords(case)
+    bottom = [f for f in local.faces()
+              if f.geom_type == GeomType.PLANE and abs(f.normal_at().Z + 1) < 1e-6 and abs(f.center().Z) < 1e-4]
+    assert len(bottom) == 1
+    r = FOOT_D / 2 + FOOT_CLEAR
+    wires = [w for w in bottom[0].inner_wires()
+             if all(abs(abs(e.radius) - r) > 1e-3 for e in w.edges() if e.geom_type == GeomType.CIRCLE)]
+    wires.append(bottom[0].outer_wire())
+    return min(Vertex(x, v, 0).distance_to(w) for x, v in FOOT_POS for w in wires) - r
 
 
 if __name__ == "__main__":
@@ -142,7 +170,8 @@ if __name__ == "__main__":
     mesher = Mesher()  # 3D プリンタのスライサー用。単位は mm
     mesher.add_shape(case)
     mesher.write(out / "bottom-l.3mf")
-    print(f"volume = {case.volume:.2f} mm^3")
+    print(f"volume = {case.volume:.2f} mm^3, foot recess edge clearance = {check_feet(case):.2f} mm")
+    assert check_feet(case) >= FOOT_EDGE_CLEAR - 0.3   # 0.5 mm 刻みで探した位置なので、少しの差は許す
     if "--show" in sys.argv:
         from ocp_vscode import show
         show(case)
