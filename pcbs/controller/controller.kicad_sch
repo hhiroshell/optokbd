@@ -1498,6 +1498,16 @@
 		)
 		(uuid "fecea165-126f-4c12-812d-b7be95bc949e")
 	)
+	(label "GND"
+		(at 60.96 90.17 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "05802629-5677-4e85-b953-6ca414d86757")
+	)
 	(label "D3"
 		(at 38.1 63.5 0)
 		(effects
@@ -1558,7 +1568,7 @@
 		)
 		(uuid "62c83016-d3cd-4afb-aa81-a6fbe2f04065")
 	)
-	(label "D6"
+	(label "D0"
 		(at 106.68 64.77 0)
 		(effects
 			(font
@@ -1578,7 +1588,17 @@
 		)
 		(uuid "76f3843b-71bf-468d-a82d-4584ecad5737")
 	)
-	(label "D10"
+	(label "VBAT"
+		(at 57.15 90.17 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "81d3331c-b19e-4c08-a942-ecd191c84e49")
+	)
+	(label "D7"
 		(at 106.68 74.93 0)
 		(effects
 			(font
@@ -1588,7 +1608,7 @@
 		)
 		(uuid "8bd82aa1-9fbf-463c-8394-6fc8c43cc45c")
 	)
-	(label "D2"
+	(label "D4"
 		(at 106.68 54.61 0)
 		(effects
 			(font
@@ -1598,7 +1618,7 @@
 		)
 		(uuid "9d763226-9a12-4c28-9c21-af116434b9ac")
 	)
-	(label "D0"
+	(label "D6"
 		(at 106.68 49.53 0)
 		(effects
 			(font
@@ -1618,7 +1638,7 @@
 		)
 		(uuid "a2d21366-48f5-4b4d-b4ae-dad96aaca570")
 	)
-	(label "D4"
+	(label "D2"
 		(at 106.68 59.69 0)
 		(effects
 			(font
@@ -1628,7 +1648,7 @@
 		)
 		(uuid "a6f8aaa5-4d75-4c80-b578-ebfd6804b108")
 	)
-	(label "D8"
+	(label "D9"
 		(at 106.68 69.85 0)
 		(effects
 			(font
@@ -1658,7 +1678,7 @@
 		)
 		(uuid "bcc51779-9433-4095-8aaa-f0832c25fd07")
 	)
-	(label "D5"
+	(label "D1"
 		(at 106.68 62.23 0)
 		(effects
 			(font
@@ -1668,17 +1688,7 @@
 		)
 		(uuid "be805d40-748a-405c-8590-7bc51c3b52b1")
 	)
-	(label "VBAT"
-		(at 57.15 87.63 90)
-		(effects
-			(font
-				(size 0.8128 0.8128)
-			)
-			(justify left bottom)
-		)
-		(uuid "cfbb8fa8-fa32-4b9e-8b3a-f57079f9b3c6")
-	)
-	(label "D9"
+	(label "D8"
 		(at 106.68 72.39 0)
 		(effects
 			(font
@@ -1688,7 +1698,7 @@
 		)
 		(uuid "d5509030-1fc9-4cfe-9473-0fedb59a44e8")
 	)
-	(label "D1"
+	(label "D5"
 		(at 106.68 52.07 0)
 		(effects
 			(font
@@ -1698,7 +1708,7 @@
 		)
 		(uuid "dee07b94-b4c5-4555-bbfd-c49acb4eb3b7")
 	)
-	(label "D7"
+	(label "D10"
 		(at 106.68 67.31 0)
 		(effects
 			(font
@@ -1727,16 +1737,6 @@
 			(justify left bottom)
 		)
 		(uuid "eed8d13c-e200-4081-aeda-a9abb5f3ef48")
-	)
-	(label "GND"
-		(at 60.96 87.63 90)
-		(effects
-			(font
-				(size 0.8128 0.8128)
-			)
-			(justify left bottom)
-		)
-		(uuid "f29b5576-1d13-4050-8673-2dc1f080b99d")
 	)
 	(symbol
 		(lib_id "Connector_Generic:Conn_01x02")
