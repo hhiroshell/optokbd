@@ -16,12 +16,13 @@ import layout as L
 import plate as P
 from outline import plan_corners
 
-HEIGHT = 19.6           # ケースの高さ（傾斜カット前）= ガスケットを受ける柱の上端。マトリクス基板と床の間を
+HEIGHT = 19.6           # ケースの高さ（傾斜カット前）= 壁の上端（ガスケットを受ける面）。マトリクス基板と床の間を
                         # 2.5 mm にして 2 mm のフォームを入れるため、20.0 から 0.4 下げた（トップケースの
                         # ガスケットのポケットの天井も同じだけ下げる）
 FLOOR_Z = 14.5          # 内側の床の高さ
-RIM_Z = 19.0            # 壁の上端を下げた高さ。タブの下の柱だけ HEIGHT まで残す（トップケースの段差がここに当たる）。
-                        # 奥のネジの座面（BACK_SEAT_Z）を上げたので、ネジ頭とトップケースの間の肉を稼ぐため 17.5 から上げた
+RIM_Z = HEIGHT          # 壁の上端（トップケースの段差がここに当たる）。ガスケットのタブの下も同じ高さの平らな面（以前は壁を
+                        # 17.5 → 19.0 に下げて、タブの下だけ柱として残していた。奥のネジの座面を上げたので、ネジ頭とトップ
+                        # ケースの間の肉を稼ぐため、柱と同じ高さまで上げて平らにした）
 
 # 底面の傾斜（奥が高くなる）: 最も手前の点で TILT_FRONT_Z だけ削り、奥へ TILT_SLOPE で浅くなる
 TILT_FRONT_Z = 12.5     # 最も手前で床の厚さ FLOOR_Z - 12.5 = 2.0 mm を残す（全体の厚みを抑えるため 2.5 から薄くした）
@@ -79,12 +80,6 @@ def build():
 
     # 床。左右には壁がない
     case -= Pos(0, 0, FLOOR_Z) * extrude(L.face(L.BOTTOM_FLOOR), HEIGHT)
-
-    # 壁の上端を RIM_Z まで下げる。ガスケットタブの下（柱）だけ残す
-    rim = Rectangle(2 * FAR, 2 * FAR)
-    for tab in P.tabs():
-        rim -= L.tab_strip(tab, L.pillar_half_width(tab))
-    case -= Pos(0, 0, RIM_Z) * extrude(rim, HEIGHT)
 
     # 奥のネジのまわりの台（床の上に、ネジ頭の穴を囲む）
     inside = Pos(0, 0, FLOOR_Z - 0.1) * extrude(outer, BACK_BOSS_TOP - FLOOR_Z + 0.1)

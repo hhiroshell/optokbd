@@ -64,7 +64,6 @@ def screws():
 
 # ---- ガスケットタブ ----
 TAB_SLOT_CLEARANCE = 0.15  # トップケースのポケットとタブの横のすき間（片側）。タブの x の位置決めを兼ねる
-PILLAR_CLEARANCE = 0.2     # ボトムケースの柱（タブが乗る張り出し）と、トップケースのポケットの横のすき間（片側）
 
 
 def tab_strip(tab, half_width):
@@ -75,7 +74,3 @@ def tab_strip(tab, half_width):
 
 def slot_half_width(tab):
     return tab.width / 2 + TAB_SLOT_CLEARANCE
-
-
-def pillar_half_width(tab):
-    return slot_half_width(tab) - PILLAR_CLEARANCE
