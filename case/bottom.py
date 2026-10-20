@@ -47,13 +47,16 @@ assert BEVEL_H <= FLOOR_Z - BEVEL_SEAT_CLEAR
 assert BEVEL_H / BEVEL_W * (BEVEL_W + BEVEL_OVERRUN) < FLOOR_Z
 assert BACK_SEAT_Z - SCREW_HEAD_H >= BEVEL_H + 0.3
 
-# ゴム足（直径 FOOT_D のクッションゴム）の座ぐり。底面（底蓋の外面と同じ傾いた面）に垂直に掘る。位置は底面の座標
-# （bay.FRAME の x と、底面に沿って奥へ v）で、四隅に最も近く、座ぐりの縁が底面の縁・底蓋の開口・ネジ頭の穴の切り欠きから
-# FOOT_EDGE_CLEAR 以上離れる点（0.5 mm 刻みで探した）
+# ゴム足（直径 FOOT_D のクッションゴム）を貼る位置の目印: 底面（底蓋の外面と同じ傾いた面）に彫る浅い円の溝。ゴム足を円が
+# 真ん中に来るように貼ると、円はゴム足の下に隠れる（座ぐりはブリッジの天井がきれいに刷れなかったのでやめた）。位置は底面の
+# 座標（bay.FRAME の x と、底面に沿って奥へ v）で、四隅に最も近く、ゴム足の縁が底面の縁・底蓋の開口・ネジ頭の穴の切り欠き
+# から FOOT_EDGE_CLEAR 以上離れる点（0.5 mm 刻みで探した）
 FOOT_D, FOOT_H = 7.9, 2.2   # ゴム足の直径と高さ
-FOOT_CLEAR = 0.25       # ゴム足と座ぐりの縁のすき間（片側）
-FOOT_DEPTH = 0.6        # 座ぐりの深さ（層の厚さ 0.2 の 3 層）。ゴム足は底面から FOOT_H - FOOT_DEPTH（1.6）出る
-FOOT_EDGE_CLEAR = 4.0   # 縁に寄せすぎない（1.5 から内側へ寄せた）
+FOOT_MARK_D = 6.0       # 目印の円の直径（溝の中心）。ゴム足の縁より内側に隠れる
+FOOT_MARK_W = 0.6       # 溝の幅（ノズル 0.4 より広く、1 層目のつぶれで埋まらないように）
+FOOT_MARK_DEPTH = 0.4   # 溝の深さ（層の厚さ 0.2 の 2 層）
+FOOT_EDGE_CLEAR = 4.25  # ゴム足の縁から底面の縁まで（座ぐりの縁から 4.0 だった位置のまま）
+assert FOOT_MARK_D + FOOT_MARK_W <= FOOT_D - 1.0
 FOOT_POS = [(9.0, -16.0), (124.5, -16.0), (9.0, -61.0), (120.0, -81.5)]   # 奥の左、奥の右、手前の左、手前の右
 
 FAR = 200.0  # 外形より十分外側
@@ -157,24 +160,26 @@ def build():
         case -= cut
     case = bay.add_screw_bosses(case)
 
-    # ゴム足の座ぐり
+    # ゴム足の目印
     for x, v in FOOT_POS:
-        case -= bay.local_cylinder(x, v, -1, FOOT_DEPTH, FOOT_D + 2 * FOOT_CLEAR)
+        ring = bay.local_cylinder(x, v, -1, FOOT_MARK_DEPTH, FOOT_MARK_D + FOOT_MARK_W)
+        ring -= bay.local_cylinder(x, v, -2, FOOT_MARK_DEPTH + 1, FOOT_MARK_D - FOOT_MARK_W)
+        case -= ring
     return case
 
 
 def check_feet(case):
-    """ゴム足の座ぐりの縁と、底面の縁（座ぐりを掘る前の底面の輪郭と穴）の最小距離。"""
+    """ゴム足の縁と、底面の縁（目印を除いた底面の輪郭と穴）の最小距離。"""
     import bay
     local = bay.FRAME.to_local_coords(case)
     bottom = [f for f in local.faces()
               if f.geom_type == GeomType.PLANE and abs(f.normal_at().Z + 1) < 1e-6 and abs(f.center().Z) < 1e-4]
-    assert len(bottom) == 1
-    r = FOOT_D / 2 + FOOT_CLEAR
-    wires = [w for w in bottom[0].inner_wires()
-             if all(abs(abs(e.radius) - r) > 1e-3 for e in w.edges() if e.geom_type == GeomType.CIRCLE)]
-    wires.append(bottom[0].outer_wire())
-    return min(Vertex(x, v, 0).distance_to(w) for x, v in FOOT_POS for w in wires) - r
+    face = max(bottom, key=lambda f: f.area)   # 目印の円の内側は、別の小さな面になる
+    mark = (FOOT_MARK_D + FOOT_MARK_W) / 2
+    wires = [w for w in face.inner_wires()
+             if all(abs(abs(e.radius) - mark) > 1e-3 for e in w.edges() if e.geom_type == GeomType.CIRCLE)]
+    wires.append(face.outer_wire())
+    return min(Vertex(x, v, 0).distance_to(w) for x, v in FOOT_POS for w in wires) - FOOT_D / 2
 
 
 if __name__ == "__main__":
@@ -186,7 +191,7 @@ if __name__ == "__main__":
     mesher = Mesher()  # 3D プリンタのスライサー用。単位は mm
     mesher.add_shape(case)
     mesher.write(out / "bottom-l.3mf")
-    print(f"volume = {case.volume:.2f} mm^3, foot recess edge clearance = {check_feet(case):.2f} mm")
+    print(f"volume = {case.volume:.2f} mm^3, foot edge clearance = {check_feet(case):.2f} mm")
     assert check_feet(case) >= FOOT_EDGE_CLEAR - 0.3   # 0.5 mm 刻みで探した位置なので、少しの差は許す
     if "--show" in sys.argv:
         from ocp_vscode import show
