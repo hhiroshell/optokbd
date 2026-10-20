@@ -32,11 +32,19 @@ TILT_SLOPE = math.tan(math.radians(TILT_ANGLE))
 BEVEL_H = 14.0          # USB-C のケーブルのくぼみが面取りの斜面の中に収まる高さ（12 では上の縦の面にはみ出した）。
                         # 奥のネジ頭の穴の座面（FLOOR_Z）を削らないよう、FLOOR_Z - BEVEL_SEAT_CLEAR まで
 BEVEL_SEAT_CLEAR = 0.5
+# 奥のネジ（トップケースを留める M2 の六角穴付きボルト）のネジ頭は、外面より外へはみ出す。面取りの上端より上に沈めて、
+# トップケースの壁（下端は面取りの上端にそろう）の裏に隠す。座面を床より上げると、ネジ頭の穴が壁の厚さを突き抜けて中の空間に
+# 開くので、ネジのまわりだけ壁を内側へ厚くした台（BACK_BOSS_R、上端 BACK_BOSS_TOP）で囲む
+SCREW_HEAD_H = 2.0      # M2 の六角穴付きボルトの頭の高さ（Ø3.8 × 2.0）
+BACK_SEAT_Z = BEVEL_H + SCREW_HEAD_H + 0.3   # 奥のネジの座面（ネジ頭の下面を面取りの上端より 0.3 上に）
+BACK_BOSS_R = L.BOSS_R + 1.2              # 台の半径（ネジ頭の穴のまわりに 1.2）。外形の外へは出さない
+BACK_BOSS_TOP = BACK_SEAT_Z + 0.2         # 台の上端。マトリクス基板の下面（17.0）より下
 BEVEL_OVERRUN = 0.1     # 面取りを削る三角形を、外面より外へ延ばす量（奥の壁と稜線が重ならないように）。床の上面より上で外面の外へ
                         # 張り出したネジのボス（L.BOSS_R）を斜面の延長が削らないよう、延長の先は床の上面より低くする
 BEVEL_W = 6.0
 assert BEVEL_H <= FLOOR_Z - BEVEL_SEAT_CLEAR
 assert BEVEL_H / BEVEL_W * (BEVEL_W + BEVEL_OVERRUN) < FLOOR_Z
+assert BACK_SEAT_Z - SCREW_HEAD_H >= BEVEL_H + 0.3
 
 # ゴム足（直径 FOOT_D のクッションゴム）の座ぐり。底面（底蓋の外面と同じ傾いた面）に垂直に掘る。位置は底面の座標
 # （bay.FRAME の x と、底面に沿って奥へ v）で、四隅に最も近く、座ぐりの縁が底面の縁・底蓋の開口・ネジ頭の穴の切り欠きから
@@ -73,6 +81,12 @@ def build():
     for tab in P.tabs():
         rim -= L.tab_strip(tab, L.pillar_half_width(tab))
     case -= Pos(0, 0, RIM_Z) * extrude(rim, HEIGHT)
+
+    # 奥のネジのまわりの台（床の上に、ネジ頭の穴を囲む）
+    inside = Pos(0, 0, FLOOR_Z - 0.1) * extrude(outer, BACK_BOSS_TOP - FLOOR_Z + 0.1)
+    for s in screws:
+        if s.back:
+            case += inside & (Pos(s.pos.X, s.pos.Y, FLOOR_Z - 0.1) * Solid.make_cylinder(BACK_BOSS_R, BACK_BOSS_TOP - FLOOR_Z + 0.1))
 
     # 底面の傾斜。YZ 平面に描いて x 方向に貫通させる
     y_front = outer.bounding_box().min.Y
@@ -113,11 +127,12 @@ def build():
     # 奥のネジ頭の穴は外面より外へはみ出して面取りに抜けるので、穴の中心から外へ穴の直径の幅でまっすぐ延ばして U 字にする
     # （円のままだと外面の位置で幅が狭まり、抜けの縁がすぼまって見える）
     for s in screws:
-        case -= Pos(s.pos.X, s.pos.Y, -1) * Solid.make_cylinder(L.BOSS_R, FLOOR_Z + 1)
+        seat = BACK_SEAT_Z if s.back else FLOOR_Z
+        case -= Pos(s.pos.X, s.pos.Y, -1) * Solid.make_cylinder(L.BOSS_R, seat + 1)
         if s.back:
             ang = math.degrees(math.atan2(s.normal.Y, s.normal.X))
             case -= Pos(s.pos.X, s.pos.Y, -1) * Rot(0, 0, ang) * Box(
-                5.0, 2 * L.BOSS_R, FLOOR_Z + 1, align=(Align.MIN, Align.CENTER, Align.MIN))
+                5.0, 2 * L.BOSS_R, seat + 1, align=(Align.MIN, Align.CENTER, Align.MIN))
         case -= Pos(s.pos.X, s.pos.Y, -1) * Solid.make_cylinder(L.HOLE_R, HEIGHT + 2)
 
     # 奥のネジ頭の穴が面取りに抜けたところを R0.5（面取りの高さによっては OCC で作れないので、そのときは丸めない）

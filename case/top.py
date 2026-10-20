@@ -31,6 +31,10 @@ CHAMFER = 3.0           # 上面の外周（奥、手前左、親指の下の円
 NUT_Z = (15.0, 16.8)    # ナットのポケットの高さ（段差 z = 11 から 4 mm 上。ナットが抜け落ちないよう、上下に肉を残す）
 NUT_AF = 4.2            # ナットのポケットの二面幅（M2 ナット 4.0 mm + 0.2）
 HOLE_TOP = 18.0         # ネジ穴の深さ（ナットの上に 1.2 mm）
+CASE_SCREW_LEN = 10.0   # ケースを留めるネジ（M2 × 10）
+# 奥のネジは座面がボトムケースの面取りより上にあり（bottom.BACK_SEAT_Z）、ネジの先端も高くなるので、穴を深くする
+HOLE_TOP_BACK = B.BACK_SEAT_Z - L.Z_OFFSET + CASE_SCREW_LEN + 0.2
+assert B.FLOOR_Z - L.Z_OFFSET + CASE_SCREW_LEN <= HOLE_TOP
 # ナットのポケットの天井（上面を下にして刷るので、ナットが当たる z = NUT_Z[0] の面が印刷の天井になる）の作り方。サポートを
 # 使わず、幅 4.2 の天井をブリッジで刷るための形（ネジ穴があると、ブリッジの線が穴の縁で途切れて垂れる）:
 #   "round"    : ネジ穴をそのまま通す（今まで。サポートが要る）
@@ -123,15 +127,16 @@ def nut_pocket(screw):
 def screw_cut(screw, ceiling=NUT_CEILING):
     """ネジまわりの削る形: ナットのポケットとネジ穴。ceiling はポケットの天井の作り方（NUT_CEILING を参照）。"""
     z0, layer, rh = NUT_Z[0], NUT_LAYER, L.HOLE_R
+    hole_top = HOLE_TOP_BACK if screw.back else HOLE_TOP
     pocket = nut_pocket(screw)
     # 輪郭が時計回りになり、面の法線が下を向くので、押し出す向きを固定する（固定しないと z0 から下に押し出される）
     cut = Pos(0, 0, z0) * extrude(pocket, NUT_Z[1] - z0, dir=(0, 0, 1))
     x, y = screw.pos.X, screw.pos.Y
     if ceiling == "membrane":
         cut += Pos(x, y, -1) * Solid.make_cylinder(rh, z0 - layer + 1)
-        cut += Pos(x, y, z0) * Solid.make_cylinder(rh, HOLE_TOP - z0)
+        cut += Pos(x, y, z0) * Solid.make_cylinder(rh, hole_top - z0)
         return cut
-    cut += Pos(x, y, -1) * Solid.make_cylinder(rh, HOLE_TOP + 1)
+    cut += Pos(x, y, -1) * Solid.make_cylinder(rh, hole_top + 1)
     if ceiling == "stepped":
         t = Vector(-screw.normal.Y, screw.normal.X)   # 溝の幅の向き（ブリッジの向き）
         at = Pos(x, y) * Rot(0, 0, math.degrees(math.atan2(t.Y, t.X)))
