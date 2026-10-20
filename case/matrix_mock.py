@@ -25,7 +25,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from build123d import GeomType, Pos, Rectangle, Rot, Solid, extrude
+from build123d import Circle, GeomType, Pos, Rectangle, Rot, Solid, extrude
 
 import bottom as B
 import gasket as G
@@ -36,6 +36,9 @@ KICAD_PCB = Path(__file__).resolve().parent.parent / "pcbs" / "matrix-left" / "m
 KICAD_OFFSET = (50.0, 50.0)   # KiCad の座標 (X, Y) → プレートの座標 (X - 50, 50 - Y)
 MATRIX_T = 1.6                # 基板の厚さ
 MATRIX_INSET = 0.75           # 外形の奥と手前の辺: プレートの外形から内側へ
+# 奥のネジの位置の切り欠き（ネジの中心から）: ボトムケースのネジのまわりの台（bottom.BACK_BOSS_R）に、プレートが前後に動ける量
+# （L.PLATE_GAP）と 0.3 を足す。基板が奥へ寄って強く押し込まれても、基板の縁が台に当たらない
+BACK_NOTCH_R = B.BACK_BOSS_R + L.PLATE_GAP + 0.3
 MATRIX_SIDE_GROW = 0.3        # 外形の左右と右下の斜めの辺: プレートの外形から外へ。端の列のソケット（R0C0 と、反転した
                               # R1〜R3 の C6）のはんだパッドを基板端から 0.5 mm 以上離す。この 3 辺にはボトムケースの
                               # 壁がなく、トップケースの内面はプレートから L.TOP_CAVITY["side"] 外にある
@@ -118,7 +121,12 @@ def switches(holes):
 
 
 def board_outline():
-    return L.face({"edge": -MATRIX_INSET, "side": MATRIX_SIDE_GROW})
+    """基板の外形（平面）。奥のネジの位置に、ボトムケースのネジのまわりの台を避ける切り欠きを入れる。"""
+    face = L.face({"edge": -MATRIX_INSET, "side": MATRIX_SIDE_GROW})
+    for s in L.screws():
+        if s.back:
+            face -= Pos(s.pos.X, s.pos.Y) * Circle(BACK_NOTCH_R)
+    return face
 
 
 # 左右と斜めの辺で、基板の端とトップケースの内面の間に 0.3 mm 以上残ること
