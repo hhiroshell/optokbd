@@ -56,9 +56,9 @@ BEZEL_ROUND = 0.5       # キーの開口部の内角の丸め
 # 壁の円弧に合わせず、キーの枠から PLATE_GAP の角の形のまま抜く（上面の板の下で壁をわずかに削る）
 UNCLIPPED_KEYS = [(66.67, -9.53), (61.72, -68.58)]
 
-# 下端の切り欠き: 手前はボトムケースの傾斜した底面に合わせ、WALL_CUT_LAND_Y から奥は直線で上げる（ボトムケースの奥の面取りを
-# 逃がす）
-WALL_CUT_BACK_Z = B.BEVEL_H - L.Z_OFFSET + 0.5   # 奥の外面での高さ（8.0）
+# 下端の切り欠き: 手前はボトムケースの傾斜した底面に合わせ、WALL_CUT_LAND_Y から奥は直線で上げ、奥の面では水平（ボトムケースの
+# 奥の面取りを逃がす）
+WALL_CUT_BACK_Z = B.BEVEL_H - L.Z_OFFSET        # 奥の面の高さ（7.5）。ボトムケースの面取りの上端（奥の外面の曲がった稜線）にそろえる
 WALL_CUT_LAND_Y = -48.0                          # 直線がボトムケースの底面の傾斜から離れる位置（y。側面の中央より 12 mm 手前）
 
 FAR = 200.0  # 外形より十分外側
@@ -167,25 +167,25 @@ def nut_test(ceiling):
 
 def wall_cut():
     """下端の切り欠きの断面（YZ 平面上 (y, z)）。手前はボトムケースの傾斜した底面に沿って切り、WALL_CUT_LAND_Y から奥へは
-    直線で上げて、奥の外面で WALL_CUT_BACK_Z にする（横から見ると、ボトムケースが奥へ太くなるくさび形の帯に見える）。"""
+    直線で上げる（横から見ると、ボトムケースが奥へ太くなるくさび形の帯に見える）。奥の面（上から見ると円弧）の範囲では水平にして、
+    奥の面の下端の高さを WALL_CUT_BACK_Z でそろえる（直線のままだと、円弧の中央ほど奥にあるぶん切り欠きが高くなる）。"""
     y_front = L.face(L.BOTTOM_OUTER).bounding_box().min.Y   # ボトムケースの最も手前
     y0 = y_front + (B.TILT_FRONT_Z - L.Z_OFFSET) / B.TILT_SLOPE   # ボトムケースの底面がトップケースの z = 0 を横切る位置
     assert WALL_CUT_LAND_Y < y0   # 着地点はボトムケースの底面の傾斜の上（そこより奥は z = 0 より下）
     y_land = WALL_CUT_LAND_Y
     z_land = B.tilt_z(y_land, y_front) - L.Z_OFFSET
+    # 水平にし始める所: 奥の面の両端（左右の側面との角。R1 の丸めの分だけ手前）
+    y_flat = min(c.Y for c in plan_corners(P.PLAN, L.TOP_OUTER) if c.Y > y0) - 1.0
     bb = L.face(L.TOP_OUTER).bounding_box()
-    y_back, h = bb.max.Y, WALL_CUT_BACK_Z
-    # 直線の終わりは外面より 1 mm 外に置く（外面の最も奥の点にちょうど接すると、長さ 0 の辺ができてメッシュが壊れる）
-    y_end = y_back + 1.0
-    z_end = h + (h - z_land) / (y_back - y_land) * (y_end - y_back)
+    h = WALL_CUT_BACK_Z
     y_ff = bb.min.Y - 20
     z_ff = B.tilt_z(y_ff, y_front) - L.Z_OFFSET
     return path_face([
         ((y_ff, z_ff), None),
         ((y_land, z_land), None),
-        ((y_end, z_end), None),
-        ((y_end + 20, z_end), None),
-        ((y_end + 20, -1.0), None),
+        ((y_flat, h), None),
+        ((bb.max.Y + 20, h), None),
+        ((bb.max.Y + 20, -1.0), None),
         ((y_ff, -1.0), None),
     ])
 
