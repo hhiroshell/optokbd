@@ -14,6 +14,7 @@ import pcbnew
 BOARDS = {
     "controller": ("controller-board-outline.json", (100.0, 90.0), "bay.py"),       # 原点は奥の辺の直線部分の中央
     "matrix-left": ("matrix-board-l-outline.json", (50.0, 50.0), "matrix_mock.py"),  # 原点はプレートの座標の原点
+    "matrix-right": ("matrix-board-r-outline.json", (185.0, 50.0), "matrix_mock.py"),  # 同上（place_matrix.py の ORIGIN）
 }
 WIDTH = 0.05               # 線の幅 [mm]
 # ================

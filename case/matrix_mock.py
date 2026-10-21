@@ -14,8 +14,8 @@
 #   開口（bay.floor_openings）を決めるのに使う。プレビュー用の形は matrix_j1()
 # - 高さ（ボトムケースの座標）: プレートの上面 24.0 から、MX の規格で基板の上面は 5.0 下
 # - 実行: uv run python matrix_mock.py [--show]   （kicad-cli が必要。out/matrix-mock-l.* を印刷の向き
-#   （基板の上面を下、ソケットが上）で書き出し、KiCad の Edge.Cuts に入れる外形を out/matrix-board-l-outline.json に
-#   書き出す。スイッチの穴のきつさを試す 1 キー分のテストピースを out/switch-test.* に書き出す。--show でボトムケース、
+#   （基板の上面を下、ソケットが上）で書き出し、KiCad の Edge.Cuts に入れる外形を out/matrix-board-l-outline.json と
+#   右手（x を反転）の out/matrix-board-r-outline.json に書き出す。スイッチの穴のきつさを試す 1 キー分のテストピースを out/switch-test.* に書き出す。--show でボトムケース、
 #   底蓋、コントローラーと組み付けた状態を表示）
 import json
 import math
@@ -133,13 +133,14 @@ def board_outline():
 assert L.TOP_CAVITY["side"] - MATRIX_SIDE_GROW >= 0.3
 
 
-def board_outline_segments():
+def board_outline_segments(mirror=False):
     """基板の外形の辺の並び（プレートの座標）: [(始点, 円弧の中点 または None, 終点)]。KiCad の Edge.Cuts に入れる用
-    （scripts/set_edge_cuts.py で読む）。"""
+    （scripts/set_edge_cuts.py で読む）。mirror で右手（x を反転。plate/plate_right.dxf と配置スクリプトの MIRROR と同じ）。"""
+    sx = -1 if mirror else 1
     out = []
     for e in board_outline().outer_wire().edges():
-        a, b = ((e @ 0).X, (e @ 0).Y), ((e @ 1).X, (e @ 1).Y)
-        m = None if e.geom_type == GeomType.LINE else ((e @ 0.5).X, (e @ 0.5).Y)
+        a, b = (sx * (e @ 0).X, (e @ 0).Y), (sx * (e @ 1).X, (e @ 1).Y)
+        m = None if e.geom_type == GeomType.LINE else (sx * (e @ 0.5).X, (e @ 0.5).Y)
         out.append((a, m, b))
     return out
 
@@ -223,6 +224,7 @@ if __name__ == "__main__":
     # スイッチの穴のテストピース（モックと同じく、基板の上面を下にする）
     bay.export([("switch-test", Rot(180, 0, 0) * switch_test())], out / "switch-test")
     (out / "matrix-board-l-outline.json").write_text(json.dumps(board_outline_segments()))
+    (out / "matrix-board-r-outline.json").write_text(json.dumps(board_outline_segments(mirror=True)))
     print(f"switches = {len(sw)}, rotated = {[round(a, 1) for *_, a in sw if abs(a) > 0.1]}")
     print(f"board z (bottom case) = {PCB_TOP_Z - MATRIX_T:.2f}..{PCB_TOP_Z:.2f}, socket bottom = {PCB_TOP_Z - MATRIX_T - SOCKET_H:.2f}")
     print(f"volume = {board.volume:.2f} mm^3, solids = {len(board.solids())}")
