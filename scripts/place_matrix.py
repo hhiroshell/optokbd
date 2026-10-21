@@ -1,14 +1,21 @@
-# KiCad PCB エディタの「ツール → スクリプトコンソール」に貼り付けて実行する。
+# KiCad PCB エディタの「ツール → スクリプトコンソール」で、マトリクス基板（左手か右手）を開いて実行する。
+#   exec(open('/home/hhiroshell/src/github.com/hhiroshell/optokbd/scripts/place_matrix.py').read())
 # スイッチ・ダイオードを、接続されているネット（R0〜R3, C0〜C6）から判別して配置する。
-# 参照番号（SW1, D1 ...）には依存しない。
+# 参照番号（SW1, D1 ...）には依存しない。左手か右手かは、開いている基板のファイル名で決める（BOARDS）。
 
 import math
+import os
 import re
 import pcbnew
 
 # ===== 設定 =====
-MIRROR = False             # matrix-right では True にする（x方向を反転）
-ORIGIN = (50.0, 50.0)      # レイアウト座標 (0,0) を置く基板上の位置 [mm]
+# 基板のファイル名（拡張子なし）: (x 方向を反転するか、レイアウト座標 (0,0) を置く基板上の位置 [mm])
+# 右手はキーの位置と回転を左右に反転する（plate/plate_right.dxf と同じ、x が負の側）。スイッチ・ダイオード・J1 の
+# フットプリントは鏡像にしない（同じ部品を使う）。原点を右へずらして、基板をページの中に置く
+BOARDS = {
+    "matrix-left": (False, (50.0, 50.0)),
+    "matrix-right": (True, (185.0, 50.0)),
+}
 DIODE_OFFSET = (0.0, 5.5)  # スイッチ中心から見たダイオードの位置（キーの回転に追従）[mm]
 DIODE_ANGLE = -90.0         # キーに対するダイオードの角度 [deg]。カソードが上を向いたら -90.0 に
 DIODE_ON_BACK = True       # ダイオードを裏面に置く
@@ -89,6 +96,10 @@ def local_to_board(dx, dy, r_cw):
 
 
 board = pcbnew.GetBoard()
+name = os.path.splitext(os.path.basename(board.GetFileName()))[0]
+if name not in BOARDS:
+    raise ValueError(f"{name}: 配置の設定がない（BOARDS に追加する）")
+MIRROR, ORIGIN = BOARDS[name]
 fps = list(board.GetFootprints())
 diodes = [f for f in fps if f.GetReference().startswith("D")]
 
