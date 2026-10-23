@@ -8,8 +8,8 @@ from pathlib import Path
 
 from OCP.Standard import Standard_ConstructionError
 from build123d import (
-    Align, Axis, Box, Circle, Face, GeomType, Mesher, Plane, Polyline, Pos, Rectangle, Rot, Solid, Vector, Vertex, Wire,
-    export_step, export_stl, extrude, revolve,
+    Align, Axis, Box, Circle, Face, GeomType, Line, Mesher, Plane, Polyline, Pos, Rectangle, Rot, Solid, ThreePointArc, Vector,
+    Vertex, Wire, export_step, export_stl, extrude, revolve,
 )
 
 import layout as L
@@ -44,6 +44,8 @@ BACK_BOSS_TOP = BACK_SEAT_Z + 0.2         # 台の上端。マトリクス基板
 BEVEL_OVERRUN = 0.1     # 面取りを削る三角形を、外面より外へ延ばす量（奥の壁と稜線が重ならないように）。床の上面より上で外面の外へ
                         # 張り出したネジのボス（L.BOSS_R）を斜面の延長が削らないよう、延長の先は床の上面より低くする
 BEVEL_W = 6.0
+BEVEL_BULGE = 0.2       # 面取りの斜面の断面を、上下の端を通る円弧にして、中央で外へふくらませる量。印刷すると斜面が底から
+                        # 奥へ向かって一度内側に凹むように反るので、それを打ち消す（0 で直線）
 assert BEVEL_H <= FLOOR_Z - BEVEL_SEAT_CLEAR
 assert BEVEL_H / BEVEL_W * (BEVEL_W + BEVEL_OVERRUN) < FLOOR_Z
 assert BACK_SEAT_Z - SCREW_HEAD_H >= BEVEL_H + 0.3
@@ -66,6 +68,12 @@ FAR = 200.0  # 外形より十分外側
 def tilt_z(y, y_front):
     """傾斜カットの高さ（底面からどこまで削るか）。"""
     return TILT_FRONT_Z - TILT_SLOPE * (y - y_front)
+
+
+def bevel_face(case):
+    """奥の面取りの斜面（直線の断面なら円すい、円弧の断面ならトーラスの面）。"""
+    return max((f for f in case.faces() if f.geom_type in (GeomType.CONE, GeomType.TORUS, GeomType.REVOLUTION)),
+               key=lambda f: f.area)
 
 
 def build():
@@ -97,19 +105,26 @@ def build():
     case -= extrude(Face(Wire(wedge.edges())), FAR, both=True)
 
     # 奥の下側の面取り。三角形を奥の辺の中心軸まわりに回転させて削る。
-    # 斜面は外周より外まで BEVEL_OVERRUN だけ延長して、奥の壁と稜線が重ならないようにする
+    # 斜面は外周より外まで BEVEL_OVERRUN だけ延長して、奥の壁と稜線が重ならないようにする。斜面の断面は、下の端と延長の先を
+    # 通り、中央で外（削る側）へ BEVEL_BULGE ふくらむ円弧
     _, (cx, cy), r = P.BACK
     r += L.BOTTOM_OUTER["edge"]
     slope = BEVEL_H / BEVEL_W
-    tri = Plane.XZ * Polyline(
-        (r - BEVEL_W, 0), (r + BEVEL_OVERRUN, slope * (BEVEL_W + BEVEL_OVERRUN)), (r + BEVEL_OVERRUN, -FAR),
-        (r - BEVEL_W, -FAR), close=True,
-    )
-    case -= Pos(cx, cy) * revolve(Face(Wire(tri.edges())), Axis.Z)
+    p0, p1 = (r - BEVEL_W, 0), (r + BEVEL_OVERRUN, slope * (BEVEL_W + BEVEL_OVERRUN))
+    rest = [Line(p1, (r + BEVEL_OVERRUN, -FAR)), Line((r + BEVEL_OVERRUN, -FAR), (r - BEVEL_W, -FAR)),
+            Line((r - BEVEL_W, -FAR), p0)]
+    if BEVEL_BULGE > 0:
+        n = math.hypot(slope, 1)
+        mid = ((p0[0] + p1[0]) / 2 + BEVEL_BULGE * slope / n, (p0[1] + p1[1]) / 2 - BEVEL_BULGE / n)
+        slant = ThreePointArc(p0, mid, p1)
+    else:
+        slant = Line(p0, p1)
+    profile = Plane.XZ * Face(Wire([slant] + rest))
+    case -= Pos(cx, cy) * revolve(profile, Axis.Z)
 
     # 面取りと左右の側面の境目、手前の角の縦の稜線を R1
     left, right = P.LEFT[1][0], P.RIGHT[1][0]
-    cone = case.faces().filter_by(GeomType.CONE)[0]
+    cone = bevel_face(case)
     sides = [e for e in cone.edges() if min(abs(e.center().X - left), abs(e.center().X - right)) < 1e-6]
     front_corners = [p for p in plan_corners(P.PLAN, L.BOTTOM_OUTER) if p.Y < -30]
     corners = case.edges().filter_by(Axis.Z).filter_by(
@@ -118,7 +133,7 @@ def build():
     case = case.fillet(1.0, sides + list(corners))
 
     # 面取りと底面の境目を R0.5
-    cone = case.faces().filter_by(GeomType.CONE)[0]
+    cone = bevel_face(case)
     bottom = case.faces().sort_by(Axis.Z)[0]
     case = case.fillet(0.5, [e for e in cone.edges() if any(e.is_same(b) for b in bottom.edges())])
 
