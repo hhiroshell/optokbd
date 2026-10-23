@@ -10,11 +10,14 @@
 #   （usb_swing_clearance）。手前のツメを軸に回して閉める方式は、ツメが抜けかけた状態で回り始めて USB-C が奥の壁に
 #   当たるのでやめた
 # - 収納部の上は天井でふさぐ。天井の下面は底蓋と平行（底蓋の外面から CEILING_W）で、天井の下の部品とのすき間はどこでも
-#   同じ。床の上面は水平なので、天井は手前ほど薄い。ボトムケースは傾いた底面を下にして印刷するので、天井は印刷の向きでは
-#   水平な張り出しになり、専用のサポート材で支える。天井には、J1 のケーブルの溝からマトリクス基板の J1 までの範囲と、
+#   同じ。床の上面は水平なので、天井は手前ほど薄い。天井には、J1 のケーブルの溝からマトリクス基板の J1 までの範囲と、
 #   USB-C の上に開口を残す（floor_openings）
-# - 実行: uv run python bay.py [--show]   （out/ に底蓋、ネジまわりのテストピース、ナットの溝だけのテストピース、
-#   合わせ確認用のボトムケースの切り出し、
+# - 天井は別の部品（ceiling()）にして、ボトムケースに上から載せて接着する。ボトムケースの収納部は床の上面まで抜き、
+#   収納部の壁から CEILING_LEDGE 外までを天井の下面の高さまで削って受けにする。ボトムケースは傾いた底面を下にして
+#   印刷するので、天井をボトムケースと一体にすると印刷の向きで水平な広い張り出しになり、その層で外形がゆがんで奥の
+#   面取りに筋が出た。受けは印刷の向きで上を向いた面なのでサポートが要らない。天井の部品は下面（底蓋に平行）を下にして刷る
+# - 実行: uv run python bay.py [--show]   （out/ に底蓋、収納部の天井、ネジまわりのテストピース、ナットの溝だけの
+#   テストピース、合わせ確認用のボトムケースの切り出し、
 #   基板の外形 DXF と、KiCad の Edge.Cuts に入れる外形の JSON を書き出す。仮のコントローラー基板と XIAO のモックは
 #   controller_test_board.py）
 import json
@@ -141,6 +144,10 @@ BATTERY_PRY_GAP = 6.0         # 電池の枠の奥の辺の中央の切り欠き
 CEILING_CLEAR = 0.5           # 天井の下に残る部品と天井のすき間
 CEILING_W = LID_T + BATTERY[2] + CEILING_CLEAR   # 天井の下面: 底蓋の外面から
 CEILING_MIN_T = 0.95          # 天井のいちばん薄い所（収納部の手前の端）の厚さの下限
+CEILING_LEDGE = 1.5           # ボトムケースの天井の受けの幅: 収納部の壁から外へ
+CEILING_FIT = 0.2             # 天井の部品と、受けの縁の壁・四隅のボスのすき間
+CEILING_USB_KEEP = 1.5        # 受けを作らない範囲: 天井の USB-C の上の開口の左右の縁から外へ（奥の壁のうち USB-C の穴の上の
+                              # 部分を、受けの段で薄くしない。段を作ると穴の上が壊れやすかった）
 FLOOR_OPEN_MARGIN = 1.0       # 天井の開口: マトリクスの J1 の本体、USB-C から外へ
 FLOOR_OPEN_R = 2.0            # 天井の開口の角の丸め
 J2_H = 4.85                   # J2（PH 横型）の高さ: 基板の上面から（KiCad の 3D モデル）
@@ -384,14 +391,14 @@ def local_cylinder(x, v, w0, w1, d):
     return FRAME * Pos(x, v, w0) * Solid.make_cylinder(d / 2, w1 - w0)
 
 
-def corner_footprint(x, v, sx, sv, r):
-    """角のネジのまわりの平面形（FRAME の x, v）: 半径 r の円と、そこから隣り合う 2 つの壁（収納部の壁から 1 mm 外）までの
-    長方形。ボトムケースのボス（r = SCREW_BOSS_D / 2）と、底蓋の角の厚肉に使う。"""
+def corner_footprint(x, v, sx, sv, r, reach=0.0):
+    """角のネジのまわりの平面形（FRAME の x, v）: 半径 r の円と、そこから隣り合う 2 つの壁（収納部の壁から 1 mm + reach 外）
+    までの長方形。ボトムケースのボス（r = SCREW_BOSS_D / 2）と、底蓋の角の厚肉に使う。"""
     if sv > 0:
-        v_wall = v_of(back_y(x, LID_BACK - LID_GAP)) + 1.0   # 底蓋の外面の高さで、奥の壁から 1 mm 奥
+        v_wall = v_of(back_y(x, LID_BACK - LID_GAP)) + 1.0 + reach   # 底蓋の外面の高さで、奥の壁から 1 mm 奥
     else:
-        v_wall = v_of(LID_FRONT_Y) - LID_GAP - 1.0
-    x_wall = (LID_X[1] + LID_GAP + 1.0) if sx > 0 else (LID_X[0] - LID_GAP - 1.0)
+        v_wall = v_of(LID_FRONT_Y) - LID_GAP - 1.0 - reach
+    x_wall = (LID_X[1] + LID_GAP + 1.0 + reach) if sx > 0 else (LID_X[0] - LID_GAP - 1.0 - reach)
     footprint = Pos(x, v) * Circle(r)
     footprint += Pos(x, (v + v_wall) / 2) * Rectangle(2 * r, abs(v_wall - v))
     footprint += Pos((x + x_wall) / 2, v) * Rectangle(abs(x_wall - x), 2 * r)
@@ -592,10 +599,11 @@ check_cable_guides()
 def case_cuts():
     """ボトムケースから削る形状。"""
     cuts = []
-    # 収納部（底蓋の開口から、底蓋と平行な天井まで）と、天井の開口
-    cuts.append(lid_region(LID_GAP) & slab(-50, CEILING_W))
-    for face in floor_openings():
-        cuts.append(lid_region(LID_GAP) & prism(face, -30, B.HEIGHT + 1))
+    # 収納部（底蓋の開口から床の上面まで抜く）と、天井の部品の受け（収納部の壁から CEILING_LEDGE 外まで、天井の下面の
+    # 高さまで下げる。USB-C の穴の上は除く）。天井の開口は天井の部品の側に開ける
+    below_floor = prism(Rectangle(1000, 1000), -30, B.FLOOR_Z + 1)
+    cuts.append(lid_region(LID_GAP) & below_floor)
+    cuts.append((lid_region(LID_GAP + CEILING_LEDGE) & slab(CEILING_W, 50) & below_floor) - usb_ledge_keep())
     # 奥の壁を抜けてケーブルのプラグが通る穴（USB-C の口の先が入る。収納部の中から、くぼみまで）と、面取りの斜面のくぼみ
     # （底は口から PLUG_GAP 奥）。くぼみは USB-C の口に合わせて決まるので、基板を奥へ寄せた分だけ浅くなり、収納部とくぼみの
     # 間の壁が厚くなる
@@ -704,6 +712,53 @@ assert ceiling_min_thickness() >= CEILING_MIN_T
 assert floor_openings()[0].bounding_box().min.X >= battery_outline(BATTERY_FRAME[2] + BATTERY_FRAME[0]).bounding_box().max.X
 
 
+def ceiling():
+    """収納部の天井（別の部品。組み付けた位置）: 受けの縁の壁から CEILING_FIT 内側の範囲を、天井の下面（底蓋に平行）から
+    床の上面（水平）までの高さにした板。天井の開口と、四隅のボス（CEILING_FIT 外まで）を抜く。"""
+    part = lid_region(LID_GAP + CEILING_LEDGE - CEILING_FIT) & slab(CEILING_W, 50)
+    part &= prism(Rectangle(1000, 1000), -30, B.FLOOR_Z)
+    for face in floor_openings():
+        part -= prism(face, -30, B.FLOOR_Z + 1)
+    for x, v, sx, sv in lid_screws_local():
+        notch = corner_footprint(x, v, sx, sv, SCREW_BOSS_D / 2 + CEILING_FIT, CEILING_LEDGE + 2.0)
+        part -= FRAME * Pos(0, 0, -50) * extrude(notch, 100)
+    part -= usb_ledge_keep(CEILING_FIT)
+    return part
+
+
+def usb_ledge_keep(grow=0.0):
+    """天井の受けを作らない所（鉛直な柱）: 天井の USB-C の上の開口の左右の範囲を CEILING_USB_KEEP 広げた帯のうち、収納部の
+    壁より奥。grow だけ広げたもの（左右と、収納部の壁の側）は、天井の部品から除く範囲。"""
+    bb = floor_openings()[1].bounding_box()
+    x0, x1 = bb.min.X - CEILING_USB_KEEP - grow, bb.max.X + CEILING_USB_KEEP + grow
+    y0, y1 = -15.0, 50.0   # 手前は収納部の中（そこは収納部の側で除く）、奥は外面より先
+    band = prism(Pos((x0 + x1) / 2, (y0 + y1) / 2) * Rectangle(x1 - x0, y1 - y0))
+    return band - lid_region(LID_GAP - grow)
+
+
+def ceiling_print(part):
+    """天井の部品を印刷の向き（下面を z = 0 に置く）にしたもの。"""
+    return Pos(0, 0, -CEILING_W) * FRAME.to_local_coords(part)
+
+
+def back_screw_ledge_gap():
+    """奥のネジ（トップケースを留める）の頭の穴と、天井の受けの縁（収納部の壁から CEILING_LEDGE 外）の、平面でいちばん
+    近い所の距離。受けは天井の下面より上を削るので、その高さで穴との間に残る壁の厚さ。"""
+    out = []
+    for s in L.screws():
+        if not s.back:
+            continue
+        for i in range(201):
+            x = LID_X[0] - LID_GAP - CEILING_LEDGE + (LID_X[1] - LID_X[0] + 2 * (LID_GAP + CEILING_LEDGE)) * i / 200
+            y = back_y(x, LID_BACK - LID_GAP - CEILING_LEDGE)
+            out.append(math.hypot(x - s.pos.X, y - s.pos.Y) - L.BOSS_R)
+    return min(out)
+
+
+# 天井の受けと奥のネジの頭の穴の間に、壁が 1.5 mm 以上残ること
+assert back_screw_ledge_gap() >= 1.5
+
+
 def nail_x():
     """爪を掛ける切り欠きの中心の x: 底蓋の手前の辺の中央。"""
     return (LID_X[0] + LID_X[1]) / 2
@@ -740,10 +795,13 @@ assert BOARD_CX + J1_GROOVE_W / 2 <= LID_X[1] - LID_SCREW_INSET - SCREW_BOSS_D /
 
 def boss_solid(x, v, sx, sv):
     """ボトムケースの角のボス: 円と、そこから隣り合う 2 つの壁へ入り込む長方形（FRAME の w の向きの柱）。
-    下面は底蓋の厚肉の上面、上端は床の上面の高さ。奥の壁は鉛直なので、上ほど深く入る。"""
+    下面は底蓋の厚肉の上面、上端は床の上面の高さ。奥の壁は鉛直なので、上ほど深く入る。天井の下面より上は、天井の受けの
+    段（CEILING_LEDGE）も埋めて、受けの外の壁につなげる（下まで広げると、奥のボスの下の端が面取りの斜面から外へ出る）。"""
     w0 = LID_T + LID_PAD[1]
     footprint = corner_footprint(x, v, sx, sv, SCREW_BOSS_D / 2)
-    return (FRAME * Pos(0, 0, w0) * extrude(footprint, 30)) & prism(Rectangle(1000, 1000), -30, B.FLOOR_Z)
+    boss = FRAME * Pos(0, 0, w0) * extrude(footprint, 30)
+    boss += (FRAME * Pos(0, 0, CEILING_W) * extrude(corner_footprint(x, v, sx, sv, SCREW_BOSS_D / 2, CEILING_LEDGE), 30))
+    return boss & prism(Rectangle(1000, 1000), -30, B.FLOOR_Z)
 
 
 def nut_pocket(x, v, sx, sv):
@@ -1054,6 +1112,8 @@ if __name__ == "__main__":
     out = Path(__file__).parent / "out"
     out.mkdir(exist_ok=True)
     export(lid_part, out / "lid-l")
+    ceiling_part = ceiling()
+    export([("bay-ceiling", ceiling_print(ceiling_part))], out / "bay-ceiling-l")
     case_piece, lid_piece = screw_test(case, lid_part)
     export([("screw-test-case", case_piece), ("screw-test-lid", Pos(0, -25, 0) * lid_piece)], out / "screw-test-l")
     export([("bay-fit-test-case", fit_test(case))], out / "bay-fit-test-l")
@@ -1062,7 +1122,9 @@ if __name__ == "__main__":
     # KiCad の Edge.Cuts に入れる外形（scripts/set_edge_cuts.py で読む）
     (out / "controller-board-outline.json").write_text(json.dumps(board_outline_segments()))
     print(f"lid volume = {lid_part.volume:.2f} mm^3, solids = {len(lid_part.solids())}")
+    print(f"ceiling volume = {ceiling_part.volume:.2f} mm^3, solids = {len(ceiling_part.solids())}, "
+          f"back screw wall = {back_screw_ledge_gap():.2f}")
     if "--show" in sys.argv:
         from ocp_vscode import show
-        show(case, lid_part, *dummies(), names=["bottom-l", "lid", "board", "xiao", "usb-c", "battery"],
-             colors=["#5b8fd6", "#7f77dd", "#3b6d11", "#1d9e75", "#ba7517", "#888780"])
+        show(case, ceiling_part, lid_part, *dummies(), names=["bottom-l", "ceiling", "lid", "board", "xiao", "usb-c", "battery"],
+             colors=["#5b8fd6", "#d98c5f", "#7f77dd", "#3b6d11", "#1d9e75", "#ba7517", "#888780"])
