@@ -78,7 +78,7 @@
 				(justify left bottom)
 			)
 		)
-		(property "Sheetfile" "matrix.kicad_sch"
+		(property "Sheetfile" "matrix-right.kicad_sch"
 			(at 29.21 51.3846 0)
 			(show_name no)
 			(do_not_autoplace no)
