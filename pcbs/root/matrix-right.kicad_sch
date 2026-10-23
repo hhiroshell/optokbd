@@ -1886,6 +1886,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C81598"
+			(at 173.99 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 173.99 85.09 0)
 			(hide yes)
@@ -1984,6 +1995,17 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 125.73 67.31 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C81598"
 			(at 125.73 67.31 0)
 			(hide yes)
 			(show_name no)
@@ -2100,6 +2122,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 72.39 40.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 72.39 40.64 0)
 			(hide yes)
@@ -2176,6 +2209,17 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 77.47 67.31 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C81598"
 			(at 77.47 67.31 0)
 			(hide yes)
 			(show_name no)
@@ -2294,6 +2338,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C81598"
+			(at 125.73 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 125.73 85.09 0)
 			(hide yes)
@@ -2400,6 +2455,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 120.65 40.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 120.65 40.64 0)
 			(hide yes)
@@ -2476,6 +2542,17 @@
 			)
 		)
 		(property "Footprint" "Connector_JST:JST_SH_SM11B-SRSS-TB_1x11-1MP_P1.00mm_Horizontal"
+			(at 240.03 45.72 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C515956"
 			(at 240.03 45.72 0)
 			(hide yes)
 			(show_name no)
@@ -2597,6 +2674,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 120.65 76.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 120.65 76.2 0)
 			(hide yes)
@@ -2673,6 +2761,17 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 198.12 49.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C81598"
 			(at 198.12 49.53 0)
 			(hide yes)
 			(show_name no)
@@ -2791,6 +2890,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C81598"
+			(at 53.34 49.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 53.34 49.53 0)
 			(hide yes)
@@ -2889,6 +2999,17 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 101.6 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C81598"
 			(at 101.6 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -3005,6 +3126,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 168.91 76.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 168.91 76.2 0)
 			(hide yes)
@@ -3081,6 +3213,17 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 53.34 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C81598"
 			(at 53.34 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -3197,6 +3340,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 168.91 40.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 168.91 40.64 0)
 			(hide yes)
@@ -3271,6 +3425,17 @@
 			)
 		)
 		(property "Footprint" "kbd_SW:CherryMX_Hotswap_1u"
+			(at 144.78 76.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C41430893"
 			(at 144.78 76.2 0)
 			(hide yes)
 			(show_name no)
@@ -3357,6 +3522,17 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 149.86 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C81598"
 			(at 149.86 102.87 0)
 			(hide yes)
 			(show_name no)
@@ -3475,6 +3651,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C81598"
+			(at 77.47 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 77.47 85.09 0)
 			(hide yes)
@@ -3581,6 +3768,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 96.52 76.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 96.52 76.2 0)
 			(hide yes)
@@ -3655,6 +3853,17 @@
 			)
 		)
 		(property "Footprint" "kbd_SW:CherryMX_Hotswap_1u"
+			(at 120.65 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C41430893"
 			(at 120.65 58.42 0)
 			(hide yes)
 			(show_name no)
@@ -3749,6 +3958,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 48.26 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 48.26 58.42 0)
 			(hide yes)
@@ -3825,6 +4045,17 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 101.6 49.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C81598"
 			(at 101.6 49.53 0)
 			(hide yes)
 			(show_name no)
@@ -3943,6 +4174,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C81598"
+			(at 149.86 49.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 149.86 49.53 0)
 			(hide yes)
@@ -4041,6 +4283,17 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 198.12 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C81598"
 			(at 198.12 102.87 0)
 			(hide yes)
 			(show_name no)
@@ -4159,6 +4412,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C81598"
+			(at 77.47 49.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 77.47 49.53 0)
 			(hide yes)
@@ -4257,6 +4521,17 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 53.34 67.31 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C81598"
 			(at 53.34 67.31 0)
 			(hide yes)
 			(show_name no)
@@ -4373,6 +4648,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 193.04 40.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 193.04 40.64 0)
 			(hide yes)
@@ -4447,6 +4733,17 @@
 			)
 		)
 		(property "Footprint" "kbd_SW:CherryMX_Hotswap_1u"
+			(at 48.26 76.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C41430893"
 			(at 48.26 76.2 0)
 			(hide yes)
 			(show_name no)
@@ -4541,6 +4838,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 72.39 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 72.39 58.42 0)
 			(hide yes)
@@ -4617,6 +4925,17 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 173.99 49.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C81598"
 			(at 173.99 49.53 0)
 			(hide yes)
 			(show_name no)
@@ -4733,6 +5052,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 144.78 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 144.78 58.42 0)
 			(hide yes)
@@ -4809,6 +5139,17 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 101.6 67.31 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C81598"
 			(at 101.6 67.31 0)
 			(hide yes)
 			(show_name no)
@@ -4927,6 +5268,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C81598"
+			(at 125.73 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 125.73 102.87 0)
 			(hide yes)
@@ -5033,6 +5385,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 168.91 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 168.91 58.42 0)
 			(hide yes)
@@ -5107,6 +5470,17 @@
 			)
 		)
 		(property "Footprint" "kbd_SW:CherryMX_Hotswap_1u"
+			(at 96.52 40.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C41430893"
 			(at 96.52 40.64 0)
 			(hide yes)
 			(show_name no)
@@ -5193,6 +5567,17 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 173.99 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C81598"
 			(at 173.99 102.87 0)
 			(hide yes)
 			(show_name no)
@@ -5309,6 +5694,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 48.26 40.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 48.26 40.64 0)
 			(hide yes)
@@ -5383,6 +5779,17 @@
 			)
 		)
 		(property "Footprint" "kbd_SW:CherryMX_Hotswap_1u"
+			(at 193.04 76.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C41430893"
 			(at 193.04 76.2 0)
 			(hide yes)
 			(show_name no)
@@ -5469,6 +5876,17 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 149.86 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C81598"
 			(at 149.86 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -5587,6 +6005,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C81598"
+			(at 198.12 67.31 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 198.12 67.31 0)
 			(hide yes)
@@ -5693,6 +6122,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 144.78 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 144.78 93.98 0)
 			(hide yes)
@@ -5767,6 +6207,17 @@
 			)
 		)
 		(property "Footprint" "kbd_SW:CherryMX_Hotswap_1u"
+			(at 168.91 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C41430893"
 			(at 168.91 93.98 0)
 			(hide yes)
 			(show_name no)
@@ -5861,6 +6312,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 193.04 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 193.04 93.98 0)
 			(hide yes)
@@ -5937,6 +6399,17 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 125.73 49.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C81598"
 			(at 125.73 49.53 0)
 			(hide yes)
 			(show_name no)
@@ -6053,6 +6526,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 72.39 76.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 72.39 76.2 0)
 			(hide yes)
@@ -6129,6 +6613,17 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 198.12 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C81598"
 			(at 198.12 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -6245,6 +6740,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 193.04 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 193.04 58.42 0)
 			(hide yes)
@@ -6319,6 +6825,17 @@
 			)
 		)
 		(property "Footprint" "kbd_SW:CherryMX_Hotswap_1u"
+			(at 120.65 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C41430893"
 			(at 120.65 93.98 0)
 			(hide yes)
 			(show_name no)
@@ -6405,6 +6922,17 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 149.86 67.31 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C81598"
 			(at 149.86 67.31 0)
 			(hide yes)
 			(show_name no)
@@ -6523,6 +7051,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C81598"
+			(at 173.99 67.31 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 173.99 67.31 0)
 			(hide yes)
@@ -6629,6 +7168,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C41430893"
+			(at 144.78 40.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Datasheet" ""
 			(at 144.78 40.64 0)
 			(hide yes)
@@ -6703,6 +7253,17 @@
 			)
 		)
 		(property "Footprint" "kbd_SW:CherryMX_Hotswap_1u"
+			(at 96.52 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C41430893"
 			(at 96.52 58.42 0)
 			(hide yes)
 			(show_name no)
