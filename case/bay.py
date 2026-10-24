@@ -70,6 +70,8 @@ def back_arc(inset):
 
 # ---- 寸法 ----
 LID_T = 1.6                   # 底蓋の厚さ
+LID_BED_CHAMFER = 0.4         # 底蓋の外面（外面を下にして刷る）の縁の 45° の面取り: 外周とネジ頭の座ぐりの口。1 層目が
+                              # つぶれて外へはみ出す分（エレファントフット）で、収納部の開口とのすき間が減らないように
 LID_GAP = 0.2                 # 底蓋とボトムケースのすき間
 LID_BACK = 6.6                # 底蓋の奥の端: 奥の外形から内側へ（面取りの斜面と、底面との境目の R0.5 から離す。
                               # 開口の奥の端から境目まで約 0.9。チルト角を大きくすると底面が低くなり、境目が内側へ寄る）
@@ -510,7 +512,12 @@ def lid():
 
     # 電池のケーブルのガイド（手前の屋根は爪の溝の上に出るので、溝を掘った後で足す）
     body += cable_guides()
-    return body
+
+    # 外面（印刷でベッドに当たる面）の縁を面取りする: 外周と、ネジ頭の座ぐりの口
+    bottom = [f for f in body.faces()
+              if abs(FRAME.to_local_coords(f.center()).Z) < 1e-6 and f.normal_at().dot(FRAME.z_dir) < -0.999]
+    face = max(bottom, key=lambda f: f.area)
+    return body.chamfer(LID_BED_CHAMFER, None, face.edges())
 
 
 def battery_pins_local():
