@@ -10,8 +10,11 @@
 # - 実装する面は、フットプリントの面ではなく銅のパッドの面で決める。スイッチのフットプリント（表）はホットスワップ
 #   ソケットのパッドが裏にあるので、ソケットは Bottom。このような部品の中心は、フットプリントの原点（スイッチの中心）
 #   ではなく、パッドの範囲の中心にする
-# - 回転は KiCad の向き（反時計回り）に ROTATION_OFFSET を足したもの。JLCPCB の部品の向きの決め方は部品ごとに違うので、
-#   注文画面のプレビューで向きを確かめて、ずれていたら ROTATION_OFFSET を直して書き出し直す
+# - 回転: 表の部品は KiCad の向き（反時計回り）、裏の部品は 180 - KiCad の向き。どちらにも ROTATION_OFFSET を足す。
+#   JLCPCB のプレビューは、裏の部品を「部品のフットプリントを回転してから左右を反転したもの」として表から見せる。
+#   EasyEDA の 3 つの部品のフットプリント（パッドと穴）をこの決め方で置くと、左右の基板のすべての部品のパッドと穴が
+#   0.1 mm 以内で重なり、パッドの番号（ダイオードのカソード、J1 のピン 1）も合う（2026-10-24 に確かめた）。KiCad の
+#   向きのままでは、ソケットと J1 が 180° ずれていた。注文画面のプレビューで向きを確かめ、ずれていたら ROTATION_OFFSET を直す
 
 import csv
 import re
@@ -97,7 +100,8 @@ def export(path):
             problems.append(f"{ref}: パッドが両面にある（スルーホール部品は対象外）")
             continue
         x, y = centroid(fp, side)
-        rot = (fp.GetOrientationDegrees() + ROTATION_OFFSET.get(lcsc, 0.0)) % 360
+        rot = fp.GetOrientationDegrees() if side == "Top" else 180 - fp.GetOrientationDegrees()
+        rot = (rot + ROTATION_OFFSET.get(lcsc, 0.0)) % 360
         footprint = fp.GetFPID().GetLibItemName().wx_str()
         groups[(lcsc, COMMENT.get(lcsc, fp.GetValue()), footprint)].append(ref)
         rows.append((ref, f"{x:.4f}mm", f"{-y:.4f}mm", f"{rot:.2f}", side))
