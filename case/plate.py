@@ -1,13 +1,18 @@
 # スイッチプレート（左手）。ケースの平面形はすべてこのプレートの外形から決める。
 # - 座標はプレート DXF のまま（mm、y は上向き＝奥が正、原点はキー配置の原点）
 # - 外形のうちタブを除いた部分は辺の定義として持ち、タブとキーの位置は DXF から読む
-# - 実行: uv run python plate.py   （out/ に印刷用のモック plate-mock-l の STEP / STL / 3MF を DXF から書き出す）
+# - 実行: uv run python plate.py   （out/ に印刷用のモック plate-mock-l の STEP / STL / 3MF を DXF から書き出す。JLCPCB に
+#   FR-4 の基板として出すプレートの外形とスイッチ穴（KiCad の Edge.Cuts に入れる）を out/plate-outline.json に書き出す。
+#   scripts/make_plate_board.py で読む。右手は同じプレートを裏返して使う（銅も部品もないので、裏返すと x を反転した形になる））
+import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
 
 import ezdxf
-from build123d import CenterArc, Face, Line, Mesher, Pos, ThreePointArc, Vector, Wire, export_step, export_stl, extrude
+from build123d import (
+    CenterArc, Face, GeomType, Line, Mesher, Pos, ThreePointArc, Vector, Wire, export_step, export_stl, extrude,
+)
 
 from outline import plan_face
 
@@ -148,6 +153,20 @@ def mock():
     return plate
 
 
+def board_outline_segments():
+    """プレートを基板として発注するときの Edge.Cuts（外形とスイッチ穴）の辺の並び: [(始点, 円弧の中点 または None, 終点)]。
+    scripts/set_edge_cuts.py と同じ形式。"""
+    edges = list(outline().outer_wire().edges())
+    for w in Wire.combine(_dxf_edges(CUTOUT_LAYER)):
+        edges += w.edges()
+    out = []
+    for e in edges:
+        a, b = ((e @ 0).X, (e @ 0).Y), ((e @ 1).X, (e @ 1).Y)
+        m = None if e.geom_type == GeomType.LINE else ((e @ 0.5).X, (e @ 0.5).Y)
+        out.append((a, m, b))
+    return out
+
+
 if __name__ == "__main__":
     part = mock()
     out = Path(__file__).parent / "out"
@@ -157,5 +176,6 @@ if __name__ == "__main__":
     mesher = Mesher()  # 3D プリンタのスライサー用。単位は mm
     mesher.add_shape(part)
     mesher.write(out / "plate-mock-l.3mf")
+    (out / "plate-outline.json").write_text(json.dumps(board_outline_segments()))
     print("tabs: " + ", ".join(f"x {t.x0:.2f}..{t.x1:.2f} ({t.width:.2f})" for t in tabs()))
     print(f"holes = {len(Wire.combine(_dxf_edges(CUTOUT_LAYER)))}, volume = {part.volume:.2f} mm^3, solids = {len(part.solids())}")

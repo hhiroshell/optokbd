@@ -1,6 +1,6 @@
 # JLCPCB に出すガーバーとドリルを書き出して、発注用の zip にまとめる。KiCad の外で、KiCad の Python
 # （/usr/bin/python3 の pcbnew）で実行する。基板のファイルは読むだけ（ゾーンの塗り直しは書き出しの中だけで行う）。
-#   /usr/bin/python3 scripts/export_gerbers.py                # 3 枚（コントローラー、左右のマトリクス）
+#   /usr/bin/python3 scripts/export_gerbers.py                # 4 枚（コントローラー、左右のマトリクス、プレート）
 #   /usr/bin/python3 scripts/export_gerbers.py a.kicad_pcb    # 指定した基板
 #   /usr/bin/python3 scripts/export_gerbers.py --force ...    # 確認で問題があっても書き出す
 # 出力: 基板のフォルダの jlcpcb/gerbers/（書き出すたびに作り直す）と jlcpcb/<基板>-gerbers.zip（jlcpcb/ は .gitignore 済み）
@@ -28,6 +28,7 @@ DEFAULT_BOARDS = [
     ROOT / "pcbs/controller/controller.kicad_pcb",
     ROOT / "pcbs/matrix-left/matrix-left.kicad_pcb",
     ROOT / "pcbs/matrix-right/matrix-right.kicad_pcb",
+    ROOT / "pcbs/plate/plate.kicad_pcb",     # スイッチプレート（FR-4 1.6 mm。左右共通。scripts/make_plate_board.py で作る）
 ]
 LAYERS = ["F.Cu", "B.Cu", "F.Paste", "B.Paste", "F.Silkscreen", "B.Silkscreen", "F.Mask", "B.Mask", "Edge.Cuts"]
 TEARDROP_CLEARANCE = 0.2   # ティアドロップと別のネットの銅の最小距離 [mm]（ネットクラスのクリアランス）
