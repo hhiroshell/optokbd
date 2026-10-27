@@ -28,7 +28,7 @@ from pathlib import Path
 from build123d import (
     Align, Box, Circle, Compound, Face, GeomType, Line, Mesher, Plane, Polyline, Pos, Rectangle, RectangleRounded, SlotOverall, Solid,
     ThreePointArc, Wire,
-    export_step, export_stl, extrude, fillet,
+    export_step, export_stl, extrude, fillet, mirror, offset,
 )
 
 import bottom as B
@@ -195,6 +195,10 @@ RIB_BOSS_CLEAR = 0.3          # リブと電池の枠の斜面の下端と、ボ
 LID_SCREW_INSET = 3.2         # ネジの中心: 底蓋の端から内側へ（座ぐりの縁に 1 mm 残す）
 LID_PAD = (6.4, 1.6)          # 底蓋の内側のネジまわりの厚肉（直径、底蓋の内面からの高さ）。ネジ頭の座ぐりのため。
                               # 平面形はボトムケースのボスと同じ（円と、隣り合う 2 つの辺までの四角）で、角を埋める
+BOSS_FACE_CHAMFER = 0.4       # ボトムケースのボスの下面（底蓋が当たる面）の縁のうち、壁につながらない側の 45° の面取り。底面を下に
+                              # して刷ると、この面はサポートの上に刷られ、1 層目がつぶれて縁が垂れ下がる（エレファントフットと同じ）
+LID_PAD_CHAMFER = 0.3         # 底蓋の厚肉の上面（ボスの下面に当たる面）の縁のうち、底蓋の外周につながらない側の 45° の面取り。
+                              # ボスの下面の縁に残ったはみ出しに乗り上げないように
 SCREW_HEAD = (4.4, 2.0)       # ネジ頭の座ぐり（直径、深さ）。M2 の六角穴付きボルト（Ø3.8 × 2.0）の頭が沈む
 SCREW_LEN = 5.0               # ネジの長さ（M2 × 5）。先端は底蓋の外面から SCREW_HEAD[1] + SCREW_LEN。
                               # 手前のボスの高さ（床の上面まで）で決まる（チルトを 6.25° に下げてボスが低くなったので 6 から短くした）
@@ -409,6 +413,17 @@ def corner_footprint(x, v, sx, sv, r, reach=0.0):
     return footprint
 
 
+def contact_chamfer(x, v, sx, sv, w, c, up):
+    """ボスの下面（up=True: w から上へ）または底蓋の厚肉の上面（up=False: w から下へ）の縁を c の 45° で落とす、削る形
+    （FRAME の座標）。落とすのは、壁（底蓋の外周）につながらない側の縁だけ: 平面形を壁の側へ延ばしてから c だけ内側へ
+    ずらした形から、45° で広がる立体を、元の平面形の柱から引く（壁の側は延ばした分だけ外にあるので削らない）。"""
+    r = SCREW_BOSS_D / 2
+    full = extrude(corner_footprint(x, v, sx, sv, r), c)
+    keep = extrude(offset(corner_footprint(x, v, sx, sv, r, reach=2 * c), -c), c, taper=-45)
+    tool = full - keep
+    return FRAME * Pos(0, 0, w) * (tool if up else mirror(tool, Plane.XY))
+
+
 def boss_flare(x, v, sx, sv, clear):
     """底蓋の側で、角のボスのまわりを避ける形（FRAME の座標）: ボスの平面形を clear だけ広げ、厚肉の上面から上へ、
     上ほど 45° で広がるように押し出したもの。リブや電池の枠はこれで削ると、ボスに近づく所で 45° の斜面になって
@@ -499,6 +514,8 @@ def lid():
     # 四隅のネジ: 角を埋める厚肉（ボスと同じ平面形を底蓋の外形で切る）、ネジ頭の座ぐり、通し穴
     for x, v, sx, sv in lid_screws_local():
         pad = FRAME * Pos(0, 0, LID_T - 0.1) * extrude(corner_footprint(x, v, sx, sv, LID_PAD[0] / 2), LID_PAD[1] + 0.1)
+        # 上面の縁の面取りは厚肉だけに入れてから足す（リブや電池の枠が厚肉につながる所は、リブで埋まったままにする）
+        pad -= contact_chamfer(x, v, sx, sv, LID_T + LID_PAD[1], LID_PAD_CHAMFER, up=False)
         body += pad & lid_region()
         body -= local_cylinder(x, v, -1, SCREW_HEAD[1], SCREW_HEAD[0])
         body -= local_cylinder(x, v, -1, LID_T + LID_PAD[1] + 1, SCREW_CLEAR_D)
@@ -845,10 +862,11 @@ def add_screw_bosses(case):
     """収納部を削った後のボトムケースに、四隅のボスを足して、ネジの通し穴とナットの溝を開ける。
     ボス、穴、溝はどれも底蓋に垂直（FRAME の w の向き）。通し穴はナットの溝の床まで（その上はナットと、溝の天井の
     屋根の空間にネジの先端が入る。穴を屋根まで開けると、屋根の斜面に水平な天井の小さな張り出しができる）。"""
+    w0 = LID_T + LID_PAD[1]
     for x, v, sx, sv in lid_screws_local():
         case += boss_solid(x, v, sx, sv)
+        case -= contact_chamfer(x, v, sx, sv, w0, BOSS_FACE_CHAMFER, up=True)
     tip = SCREW_HEAD[1] + SCREW_LEN
-    w0 = LID_T + LID_PAD[1]
     for x, v, sx, sv in lid_screws_local():
         case -= local_cylinder(x, v, w0 - 1, tip - NUT_TIP - NUT_T + 0.1, SCREW_CLEAR_D)
         case -= nut_pocket(x, v, sx, sv)
