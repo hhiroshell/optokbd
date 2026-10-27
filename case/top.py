@@ -9,7 +9,7 @@ from pathlib import Path
 
 from build123d import (
     Axis, Box, Circle, Compound, Face, Kind, Mesher, Plane, Polyline, Pos, Rectangle, RectangleRounded, Rot, Solid, Vector,
-    Wire, export_step, export_stl, extrude, offset,
+    Wire, export_step, export_stl, extrude, offset, revolve,
 )
 
 import bottom as B
@@ -28,6 +28,8 @@ SLOT_TOP = 19.6         # ガスケットのポケットの高さ（ボトムケ
                         # 高さ 6.5 を保つ）
 INNER_BOSS_R = 2.4      # ボトムケースのボスを逃がす円
 CHAMFER = 3.0           # 上面の外周（奥、手前左、親指の下の円弧と直線）の面取り
+BOTTOM_CHAMFER = B.BED_CHAMFER  # 外壁の下端の外側の稜線（奥、手前左、親指の下の円弧と直線）の面取り。手に持ったときの当たりを
+                                # 柔らかくする。ボトムケースの底面の外周（0.4）にそろえる
 BED_CHAMFER = 0.3       # 上面（上面を下にして刷るので、印刷でベッドに当たる面）の縁の 45° の面取り: 外周の左右と右下の斜めの辺、
                         # キーの開口部の縁。1 層目（0.2）がつぶれて外や内へはみ出す分（エレファントフット）を、1 層目だけ約 0.2
                         # 引っ込めて打ち消す。上面の左右の辺の平らな幅は 2.1 → 1.5
@@ -231,23 +233,44 @@ def build(ceiling=NUT_CEILING):
     assert len(edges) == len(sides)
     case = case.chamfer(BED_CHAMFER, None, edges)
 
-    # 外周の縦の角と、そこにつながる面取りの端を R1（CHAMFER の面取りの端は、上端が BED_CHAMFER の面取りで切れている）
+    # 外周の縦の角と、そこにつながる面取りの端（CHAMFER の面取りの端は、上端が BED_CHAMFER の面取りで切れている）の稜線
     corners = plan_corners(P.PLAN, L.TOP_OUTER)
+    y_back = min(c.Y for c in corners) + 30   # これより奥の角が、奥の辺の両端の角
 
-    def at(p):
-        return any((Vector(p.X, p.Y) - c).length < 1e-3 for c in corners)
+    def corner_edges(case, back):
+        out = []
+        for e in case.edges():
+            vs = sorted(e.vertices(), key=lambda v: v.Z)
+            low, high = vs[0], vs[-1]
+            at = [c for c in corners if (Vector(low.X, low.Y) - c).length < 1e-3]
+            if high.Z - low.Z < 1 or not at or (at[0].Y > y_back) != back:
+                continue
+            vertical = (Vector(low.X, low.Y) - Vector(high.X, high.Y)).length < 1e-6
+            chamfer_end = abs(low.Z - (HEIGHT - CHAMFER)) < 1e-3 and high.Z > HEIGHT - BED_CHAMFER - 1e-3
+            if vertical or chamfer_end:
+                out.append(e)
+        return out
 
-    edges = []
-    for e in case.edges():
-        vs = sorted(e.vertices(), key=lambda v: v.Z)
-        low, high = vs[0], vs[-1]
-        if high.Z - low.Z < 1 or not at(low):
-            continue
-        vertical = (Vector(low.X, low.Y) - Vector(high.X, high.Y)).length < 1e-6
-        chamfer_end = abs(low.Z - (HEIGHT - CHAMFER)) < 1e-3 and high.Z > HEIGHT - BED_CHAMFER - 1e-3
-        if vertical or chamfer_end:
-            edges.append(e)
-    case = case.fillet(1.0, edges)
+    # 外壁の下端の外側の稜線の BOTTOM_CHAMFER の面取り（手前左、親指の下の円弧と直線）。内側（ボトムケースを囲む面）は面取り
+    # しない。上面の面取りと同じく、角の R1 の前にかける（R1 の後では、R1 を伝って左右の辺の下端にまで回ろうとして OCC で
+    # 作れない）。奥の辺は、R1 の前でも後でも OCC の面取りでは作れない（R1 が作れなくなるか、面取りが作れない）ので、R1 の後に
+    # 回転体で削る
+    front = [curves[i] for i in (P.I_FRONT_LEFT, P.I_THUMB, P.I_THUMB_LINE)]
+    edges = [e for e in case.edges()
+             if e.center().Z < HEIGHT - CHAMFER - 1 and any(on_curve(e.center(), c) for c in front)
+             and abs((e @ 0).Z - (e @ 1).Z) < 0.9 * (e @ 0 - e @ 1).length]
+    case = case.chamfer(BOTTOM_CHAMFER, None, edges)
+
+    # 外周の縦の角と、そこにつながる面取りの端を R1
+    case = case.fillet(1.0, corner_edges(case, back=True) + corner_edges(case, back=False))
+
+    # 奥の辺の下端の外側の稜線の BOTTOM_CHAMFER の面取り: 奥の外面（円筒）の下端（水平、WALL_CUT_BACK_Z）の稜線から、外面と
+    # 下面に沿って BOTTOM_CHAMFER の 45° の三角形を、奥の辺の円弧の中心のまわりに回して削る。両端の角では、R1 の面が円弧から
+    # 内へ離れていくので、面取りは R1 の中で細くなって消える
+    _, (cx, cy), r = curves[P.I_BACK]
+    c, z = BOTTOM_CHAMFER, WALL_CUT_BACK_Z
+    tri = Plane.XZ * Face(Wire(Polyline((r - c - 1, z - 1), (r + 1, z + c + 1), (r + 1, z - 1), close=True).edges()))
+    case -= Pos(cx, cy) * revolve(tri, Axis.Z)
 
     # キーの開口部の縁の BED_CHAMFER の面取り（エレファントフット対策）
     top = case.faces().filter_by(Axis.Z).sort_by(Axis.Z)[-1]
