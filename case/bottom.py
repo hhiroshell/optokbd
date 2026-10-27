@@ -62,6 +62,11 @@ FOOT_EDGE_CLEAR = 4.25  # ゴム足の縁から底面の縁まで（座ぐりの
 assert FOOT_MARK_D + FOOT_MARK_W <= FOOT_D - 1.0
 FOOT_POS = [(9.0, -16.0), (124.5, -16.0), (9.0, -61.0), (120.0, -81.5)]   # 奥の左、奥の右、手前の左、手前の右
 
+# 底面（底面を下にして刷る）の縁の面取り: 外周（奥の面取りとの境目を含む）、収納部の開口、手前のネジ頭の穴の口。1 層目が
+# つぶれて外や内へはみ出す分（エレファントフット）で、外形が広がったり、底蓋とのすき間やネジ頭の穴（ネジ頭とのすき間は
+# 片側 0.1）が狭まったりしないように。側面との境目では 45°
+BED_CHAMFER = 0.4
+
 FAR = 200.0  # 外形より十分外側
 
 
@@ -122,6 +127,10 @@ def build():
     profile = Plane.XZ * Face(Wire([slant] + rest))
     case -= Pos(cx, cy) * revolve(profile, Axis.Z)
 
+    # 底面の外周（奥の面取りとの境目を含む）を BED_CHAMFER の面取り（R1 のフィレットの後では OCC で作れない）
+    bottom = case.faces().sort_by(Axis.Z)[0]
+    case = case.chamfer(BED_CHAMFER, None, bottom.outer_wire().edges())
+
     # 面取りと左右の側面の境目、手前の角の縦の稜線を R1
     left, right = P.LEFT[1][0], P.RIGHT[1][0]
     cone = bevel_face(case)
@@ -131,11 +140,6 @@ def build():
         lambda e: any((Vector(e.center().X, e.center().Y) - p).length < 1e-6 for p in front_corners)
     )
     case = case.fillet(1.0, sides + list(corners))
-
-    # 面取りと底面の境目を R0.5
-    cone = bevel_face(case)
-    bottom = case.faces().sort_by(Axis.Z)[0]
-    case = case.fillet(0.5, [e for e in cone.edges() if any(e.is_same(b) for b in bottom.edges())])
 
     # ネジ頭の穴と貫通穴。R1 のフィレットが穴にぶつかると OCC では作れないので、穴はフィレットの後で開ける
     # 奥のネジ頭の穴は外面より外へはみ出して面取りに抜けるので、穴の中心から外へ穴の直径の幅でまっすぐ延ばして U 字にする
@@ -170,6 +174,22 @@ def build():
         case -= cut
     case = bay.add_screw_bosses(case)
 
+    # 収納部の開口の縁の面取り。奥の辺を除く（奥の面取りとの境目の面取りに近く、間の底面が 1 層目では線幅より細くなる。
+    # 底蓋の外面の縁も面取りしてあるので、ここがはみ出しても底蓋には当たらない）
+    bottom = [f for f in case.faces()
+              if abs(bay.FRAME.to_local_coords(f.center()).Z) < 1e-6 and f.normal_at().dot(bay.FRAME.z_dir) < -0.999]
+    face = max(bottom, key=lambda f: f.area)
+    (opening,) = face.inner_wires()
+    back = max(opening.edges(), key=lambda e: bay.FRAME.to_local_coords(e.center()).Y)
+    case = case.chamfer(BED_CHAMFER, None, [e for e in opening.edges() if not e.is_same(back)])
+
+    # 手前の 3 つのネジ頭の穴の口は、底面に垂直な軸の 45° の円すいで削る（右手前の穴は外周の角に近く、OCC の面取りでは
+    # 作れない）。奥のネジ頭の穴は面取りの斜面の上にあり、底面には出ない
+    for s in screws:
+        if not s.back:
+            case -= bay.FRAME * Pos(s.pos.X, bay.v_of(s.pos.Y), -1) * Solid.make_cone(
+                L.BOSS_R + BED_CHAMFER + 1, L.BOSS_R - 0.5, BED_CHAMFER + 1.5)
+
     # ゴム足の目印
     for x, v in FOOT_POS:
         ring = bay.local_cylinder(x, v, -1, FOOT_MARK_DEPTH, FOOT_MARK_D + FOOT_MARK_W)
@@ -202,7 +222,8 @@ if __name__ == "__main__":
     mesher.add_shape(case)
     mesher.write(out / "bottom-l.3mf")
     print(f"volume = {case.volume:.2f} mm^3, foot edge clearance = {check_feet(case):.2f} mm")
-    assert check_feet(case) >= FOOT_EDGE_CLEAR - 0.3   # 0.5 mm 刻みで探した位置なので、少しの差は許す
+    # 0.5 mm 刻みで探した位置なので、少しの差は許す。底面の縁の面取りの分だけ、平らな所の縁は内へ入る
+    assert check_feet(case) >= FOOT_EDGE_CLEAR - 0.3 - BED_CHAMFER
     if "--show" in sys.argv:
         from ocp_vscode import show
         show(case)
