@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "build123d>=0.13.0",
     "ezdxf>=1.4.4",
+    "shapely>=2.2.0",
 ]
 
 [dependency-groups]
