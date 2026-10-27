@@ -66,6 +66,7 @@ FOOT_POS = [(9.0, -16.0), (124.5, -16.0), (9.0, -61.0), (120.0, -81.5)]   # 奥�
 # つぶれて外や内へはみ出す分（エレファントフット）で、外形が広がったり、底蓋とのすき間やネジ頭の穴（ネジ頭とのすき間は
 # 片側 0.1）が狭まったりしないように。側面との境目では 45°
 BED_CHAMFER = 0.4
+PLUG_RECESS_CHAMFER = 0.4   # USB-C のケーブルのくぼみの口の縁の面取り
 
 FAR = 200.0  # 外形より十分外側
 
@@ -173,6 +174,15 @@ def build():
     for cut in bay.case_cuts():
         case -= cut
     case = bay.add_screw_bosses(case)
+
+    # USB-C のケーブルのくぼみの口の縁（くぼみの側面と奥の面取りの斜面の境目）を PLUG_RECESS_CHAMFER の面取り。くぼみの側面は
+    # FRAME の奥向き（v）に平行
+    v_dir = bay.FRAME.y_dir
+    bevel = bevel_face(case)
+    recess = [f for f in case.faces() if abs(f.normal_at().dot(v_dir)) < 1e-6
+              and abs(f.center().X - bay.BOARD_CX) < bay.PLUG_W and f.distance_to(bevel) < 1e-6]
+    edges = [e for f in recess for e in f.edges() if any(e.is_same(b) for b in bevel.edges())]
+    case = case.chamfer(PLUG_RECESS_CHAMFER, None, edges)
 
     # 収納部の開口の縁の面取り。奥の辺を除く（奥の面取りとの境目の面取りに近く、間の底面が 1 層目では線幅より細くなる。
     # 底蓋の外面の縁も面取りしてあるので、ここがはみ出しても底蓋には当たらない）
