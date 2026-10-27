@@ -28,6 +28,9 @@ SLOT_TOP = 19.6         # ガスケットのポケットの高さ（ボトムケ
                         # 高さ 6.5 を保つ）
 INNER_BOSS_R = 2.4      # ボトムケースのボスを逃がす円
 CHAMFER = 3.0           # 上面の外周（奥、手前左、親指の下の円弧と直線）の面取り
+BED_CHAMFER = 0.3       # 上面（上面を下にして刷るので、印刷でベッドに当たる面）の縁の 45° の面取り: 外周の左右と右下の斜めの辺、
+                        # キーの開口部の縁。1 層目（0.2）がつぶれて外や内へはみ出す分（エレファントフット）を、1 層目だけ約 0.2
+                        # 引っ込めて打ち消す。上面の左右の辺の平らな幅は 2.1 → 1.5
 
 NUT_Z = (15.6, 17.4)    # ナットのポケットの高さ（段差 INNER_TOP から 2.5 mm 上。ナットが抜け落ちないよう、上下に肉を残す）
 NUT_AF = 4.2            # ナットのポケットの二面幅（M2 ナット 4.0 mm + 0.2）
@@ -53,14 +56,12 @@ def _on_layer(d):
 
 assert _on_layer(HEIGHT - NUT_Z[0])
 
-BEZEL_MARGIN = L.PLATE_GAP + 0.05  # キーの開口部: 1U の枠から外へ（18 mm のキーキャップとは 1.275 mm）。角は R0.75。
-                            # 内側の空間の壁（プレートから PLATE_GAP）より 0.05 外まで描いて、壁で切る。キーの辺と
-                            # プレートの辺が重なる所（左右、斜め、親指の下）で、開口部が壁とそろい、ベゼルの下面の段差が
-                            # 出ない（ちょうど PLATE_GAP にすると、線が重なって幅のない面が残る）
+BEZEL_MARGIN = 0.6      # キーの開口部: 1U の枠から外へ（18 mm のキーキャップとは 1.125 mm）。角は R0.6。内側の空間の壁
+                        # （プレートから PLATE_GAP）より 0.1 内側なので、キーの辺とプレートの辺が重なる所（左右、斜め、親指の下）
+                        # では、ベゼルの下面に 0.1 の段ができる。プレートの外形がキーの角を切る所（R3C3 の左下、R0C3 の奥）では、
+                        # 内側の空間よりわずかに外へ出る。一時 PLATE_GAP + 0.05 まで広げて壁で切っていたが、上面の左右の辺の
+                        # 平らな幅を残すため（BED_CHAMFER を両側に入れる）戻した
 BEZEL_ROUND = 0.5       # キーの開口部の内角の丸め
-# 開口部を内側の空間の壁で切らないキー（中心）: R0C3 の奥と R3C3 の左下は、プレートの外形（円弧）がキーの角を切るので、
-# 壁の円弧に合わせず、キーの枠から PLATE_GAP の角の形のまま抜く（上面の板の下で壁をわずかに削る）
-UNCLIPPED_KEYS = [(66.67, -9.53), (61.72, -68.58)]
 
 # 下端の切り欠き: 手前はボトムケースの傾斜した底面に合わせ、WALL_CUT_LAND_Y から奥は直線で上げ、奥の面では水平（ボトムケースの
 # 奥の面取りを逃がす）
@@ -73,8 +74,7 @@ FAR = 200.0  # 外形より十分外側
 def bezel():
     """キーの開口部: 各キーの 1U の枠を BEZEL_MARGIN だけオフセットした形（直線と R）の和集合の外周。
     親指キーの下辺は、プレートの親指の下の円弧から BEZEL_MARGIN 外の円弧（各キーの下辺の中点に接する）。
-    内角は丸め、キーの間に囲まれたすき間（行と親指の列の間など）は開口部に含める（上面に浮いた島が残らないように）。
-    内側の空間（TOP_CAVITY）の外へ出る所は、壁にそろえて切る（UNCLIPPED_KEYS を除く）。"""
+    内角は丸め、キーの間に囲まれたすき間（行と親指の列の間など）は開口部に含める（上面に浮いた島が残らないように）。"""
     keys = P.keys()
     opening = None
     for k in keys:
@@ -83,10 +83,6 @@ def bezel():
     opening += thumb_band(keys)
     opening = offset(opening, BEZEL_ROUND, kind=Kind.ARC)
     opening = offset(opening, -BEZEL_ROUND, kind=Kind.ARC)
-    opening = Face(opening.faces()[0].outer_wire()) & L.face(L.TOP_CAVITY)
-    for k in keys:
-        if any((k.center - Vector(*c)).length < 0.05 for c in UNCLIPPED_KEYS):
-            opening += key_square(k, L.PLATE_GAP)
     return Face(opening.faces()[0].outer_wire())
 
 
@@ -227,7 +223,15 @@ def build(ceiling=NUT_CEILING):
     edges = [e for e in top.edges() if any(on_curve(e.center(), c) for c in targets)]
     case = case.chamfer(CHAMFER, None, edges)
 
-    # 外周の縦の角と、そこにつながる面取りの端を R1
+    # 上面の外周の残りの辺（左右と右下の斜めの辺）の BED_CHAMFER の面取り（エレファントフット対策）。角の R1 の前にかける
+    # （R1 の後では、R1 と CHAMFER の面取りの端の R1 を伝って、CHAMFER の面取りとの境目にまで面取りが回ってしまう）
+    sides = [curves[i] for i in (P.I_LEFT, P.I_RIGHT, P.I_SLANT)]
+    top = case.faces().filter_by(Axis.Z).sort_by(Axis.Z)[-1]
+    edges = [e for e in top.outer_wire().edges() if any(on_curve(e.center(), c) for c in sides)]
+    assert len(edges) == len(sides)
+    case = case.chamfer(BED_CHAMFER, None, edges)
+
+    # 外周の縦の角と、そこにつながる面取りの端を R1（CHAMFER の面取りの端は、上端が BED_CHAMFER の面取りで切れている）
     corners = plan_corners(P.PLAN, L.TOP_OUTER)
 
     def at(p):
@@ -240,11 +244,15 @@ def build(ceiling=NUT_CEILING):
         if high.Z - low.Z < 1 or not at(low):
             continue
         vertical = (Vector(low.X, low.Y) - Vector(high.X, high.Y)).length < 1e-6
-        chamfer_end = abs(low.Z - (HEIGHT - CHAMFER)) < 1e-3 and abs(high.Z - HEIGHT) < 1e-3
+        chamfer_end = abs(low.Z - (HEIGHT - CHAMFER)) < 1e-3 and high.Z > HEIGHT - BED_CHAMFER - 1e-3
         if vertical or chamfer_end:
             edges.append(e)
     case = case.fillet(1.0, edges)
-    return case
+
+    # キーの開口部の縁の BED_CHAMFER の面取り（エレファントフット対策）
+    top = case.faces().filter_by(Axis.Z).sort_by(Axis.Z)[-1]
+    (opening,) = top.inner_wires()
+    return case.chamfer(BED_CHAMFER, None, opening.edges())
 
 
 if __name__ == "__main__":
