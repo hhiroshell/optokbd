@@ -34,7 +34,11 @@ BED_CHAMFER = 0.3       # 上面（上面を下にして刷るので、印刷で
                         # キーの開口部の縁。1 層目（0.2）がつぶれて外や内へはみ出す分（エレファントフット）を、1 層目だけ約 0.2
                         # 引っ込めて打ち消す。上面の左右の辺の平らな幅は 2.1 → 1.5
 
-NUT_Z = (15.6, 17.4)    # ナットのポケットの高さ（段差 INNER_TOP から 2.5 mm 上。ナットが抜け落ちないよう、上下に肉を残す）
+NUT_Z = (15.6, 17.2)    # ナットのポケットの高さ（段差 INNER_TOP から 2.5 mm 上。ナットが抜け落ちないよう、上下に肉を残す）。
+                        # 厚さは M2 ナットと同じ 1.6（ボトムケースの溝 bay.NUT_T と同じ）。1.8 では、0.1 mm ノズル（層 0.1）で
+                        # 刷ると傾けるだけでナットが抜けた。きつさは幅（NUT_AF）ではなく厚さで決める
+NUT_MOUTH_OVER = 0.5    # ナットのポケットの溝を、内側の空間の壁より先へ伸ばす量（口を確実に開ける。以前は溝の端が二面幅の半分の
+                        # 位置で、壁をわずか 0.1 突き抜けて口が開いていただけで、二面幅を 4.0 より狭めると口がふさがる）
 NUT_AF = 4.2            # ナットのポケットの二面幅（M2 ナット 4.0 mm + 0.2）
 HOLE_TOP = 18.6         # ネジ穴の深さ（ナットの上に 1.2 mm）
 CASE_SCREW_LEN = 10.0   # ケースを留めるネジ（M2 × 10）
@@ -115,11 +119,13 @@ def thumb_band(keys):
 
 
 def nut_pocket(screw):
-    """ナットのポケット。平らな面を外（壁側）へ向けた六角形の外側半分と、内側へナットを入れるための溝。"""
+    """ナットのポケット。平らな面を外（壁側）へ向けた六角形の外側半分と、内側へナットを入れるための溝。溝は内側の空間の壁
+    （ネジの中心から L.SCREW_FROM_PLATE - L.PLATE_GAP）より NUT_MOUTH_OVER 先まで伸ばして、口を開ける。"""
     r = NUT_AF / math.sqrt(3)
     n = screw.normal
     t = Vector(-n.Y, n.X)
-    local = [(r, 0), (r / 2, NUT_AF / 2), (-r / 2, NUT_AF / 2), (-r, 0), (-r, -NUT_AF / 2), (r, -NUT_AF / 2)]
+    b_in = -(L.SCREW_FROM_PLATE - L.PLATE_GAP + NUT_MOUTH_OVER)
+    local = [(r, 0), (r / 2, NUT_AF / 2), (-r / 2, NUT_AF / 2), (-r, 0), (-r, b_in), (r, b_in)]
     pts = [screw.pos + t * a + n * b for a, b in local]
     return Face(Wire(Polyline(*[(p.X, p.Y) for p in pts], close=True).edges()))
 
