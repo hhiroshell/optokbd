@@ -28,7 +28,7 @@ from pathlib import Path
 from build123d import (
     Align, Box, Circle, Compound, Face, GeomType, Line, Mesher, Plane, Polyline, Pos, Rectangle, RectangleRounded, SlotOverall, Solid,
     ThreePointArc, Wire,
-    export_step, export_stl, extrude, fillet, mirror, offset,
+    export_step, export_stl, extrude, fillet, loft, mirror, offset,
 )
 
 import bottom as B
@@ -208,13 +208,17 @@ SCREW_BOSS_D = 6.4            # ボトムケースのボス
 # 底蓋を外すと基板と電池も一緒に外れるので、収納部は空になって溝に手が届く。ボトムケースは底面を下にして刷るので、溝の
 # 天井は水平な張り出しになり、中に入ったサポートが取れない。そこで天井を、溝の向き（x）に棟が通る NUT_ROOF_ANGLE の
 # 切妻屋根にして、サポートなしで刷れるようにする（ナットは屋根の下の、高さ NUT_T の平らな部分に入る）
-NUT_AF = 3.85                 # 溝の幅（M2 ナットの二面幅 4.0 mm より 0.15 狭い。印刷で溝が細る分と合わせて、押し込んで
-                              # きつくはまり、重力で落ちない。4.2 では簡単に落ち、4.0 でちょうど良かったので少しだけ締めた。
-                              # テストピースでは 3.95 でちょうど良かったが、ボトムケース全体ではかなり余裕があったので 3.85
-                              # にした。高さ方向は層の厚さ単位でしか刷れないので、きつさは横方向（幅）で調整する）
+NUT_AF = 3.95                 # 溝の幅（M2 ナットの二面幅 4.0 mm より 0.05 狭い。押し込んできつくはまり、重力で落ちない）。
+                              # 0.4 mm ノズルでは、4.2 で簡単に落ち、4.0 でちょうど良く、本体では 3.85 にしていた。0.1 mm
+                              # ノズル（層 0.1）では溝が設計に近く刷れて 3.85 では差し込むのがかなり難しかったので、テスト
+                              # ピースでちょうど良かった 3.95 に戻した。高さ方向は層の厚さ単位でしか刷れないので、きつさは
+                              # 横方向（幅）で調整する
 NUT_T = 1.6                   # 溝の厚さ（M2 ナットの 1.6 mm と同じ。もとは 1.8）
 NUT_TIP = 0.75                # ネジの先端がナットの上から出る長さ（溝を狭くして屋根が低くなった分、ナットを上げて、ネジの
                               # 先端と屋根のすき間を保つ。屋根の棟の高さは NUT_AF 3.95、NUT_TIP 0.8 のときと同じ）
+NUT_LEAD = (0.4, 1.0)         # 溝の口の広がり（片側の広がり、口からの長さ）: 幅の両側と厚さの下側を、口でこれだけ広げ、奥へ
+                              # 向かって元の大きさに戻す。ナットを多少斜めに差しても、口の斜面に沿って本来の位置へ導かれる。
+                              # 厚さの上側は屋根があるので広げない
 NUT_ROOF_ANGLE = 45.0         # 溝の天井の屋根の傾き（水平から）[度]
 NUT_ROOF_INSET = 0.2          # 屋根のうち収納部の天井の下面より高い部分は、ボスの内側の面からこれだけ内で止める（屋根の棟は
                               # 天井の下面より高いので、溝の口まで伸ばすと天井に溝ができる）。天井の下面より低い部分は口まで
@@ -850,7 +854,19 @@ def nut_pocket(x, v, sx, sv):
     keep = Pos(0, 0, nut_top) * extrude(corner_footprint(x, v, sx, sv, SCREW_BOSS_D / 2 - NUT_ROOF_INSET), h)
     keep += Pos(x, v, nut_top - 1) * Box(40, 40, CEILING_W - nut_top + 1, align=(Align.CENTER, Align.CENTER, Align.MIN))
     roof &= keep
-    return FRAME * (pocket + roof)
+    # 溝の口の案内: ボスの内側の面（中心から SCREW_BOSS_D / 2）で幅の両側と厚さの下側を NUT_LEAD[0] 広げ、そこから
+    # NUT_LEAD[1] 奥で元の大きさに戻すラッパ形。口より外は広げた大きさのまま溝の端まで
+    f, length = NUT_LEAD
+    boss_r = SCREW_BOSS_D / 2
+
+    def section(d, grow):
+        """溝の中心から収納部の側へ d の位置の、溝の断面（幅 × 厚さ。下側だけ grow 広げる）。"""
+        plane = Plane(origin=(x - s * d, v, nut_top - (NUT_T + grow) / 2), x_dir=(0, 1, 0), z_dir=(-s, 0, 0))
+        return plane * Rectangle(NUT_AF + 2 * grow, NUT_T + grow)
+
+    lead = loft([section(boss_r - length, 0.0), section(boss_r, f)])
+    lead += extrude(section(boss_r, f), reach - boss_r)
+    return FRAME * (pocket + roof + lead)
 
 
 def nut_roof_h():
