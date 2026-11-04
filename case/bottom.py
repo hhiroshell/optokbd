@@ -185,13 +185,17 @@ def build():
     case = case.chamfer(PLUG_RECESS_CHAMFER, None, edges)
 
     # 収納部の開口の縁の面取り。奥の辺を除く（奥の面取りとの境目の面取りに近く、間の底面が 1 層目では線幅より細くなる。
-    # 底蓋の外面の縁も面取りしてあるので、ここがはみ出しても底蓋には当たらない）
+    # 底蓋の外面の縁も面取りしてあるので、ここがはみ出しても底蓋には当たらない）。爪を掛ける切り欠きの手前の辺（x 方向、
+    # 開口のいちばん手前）も除く（切り欠きの 45° の斜面との境目で、面取りすると印刷の向きでほぼ水平な張り出しになり、垂れた）
     bottom = [f for f in case.faces()
               if abs(bay.FRAME.to_local_coords(f.center()).Z) < 1e-6 and f.normal_at().dot(bay.FRAME.z_dir) < -0.999]
     face = max(bottom, key=lambda f: f.area)
     (opening,) = face.inner_wires()
     back = max(opening.edges(), key=lambda e: bay.FRAME.to_local_coords(e.center()).Y)
-    case = case.chamfer(BED_CHAMFER, None, [e for e in opening.edges() if not e.is_same(back)])
+    nail = min(opening.edges(), key=lambda e: bay.FRAME.to_local_coords(e.center()).Y)
+    assert abs(bay.FRAME.to_local_coords(nail.center()).X - bay.nail_x()) < 1e-3
+    assert abs(nail.length - bay.NAIL_W) < 1e-3
+    case = case.chamfer(BED_CHAMFER, None, [e for e in opening.edges() if not (e.is_same(back) or e.is_same(nail))])
 
     # 手前の 3 つのネジ頭の穴の口は、底面に垂直な軸の 45° の円すいで削る（右手前の穴は外周の角に近く、OCC の面取りでは
     # 作れない）。奥のネジ頭の穴は面取りの斜面の上にあり、底面には出ない
