@@ -28,7 +28,7 @@ SLOT_TOP = 19.6         # ガスケットのポケットの高さ（ボトムケ
                         # 高さ 6.5 を保つ）
 INNER_BOSS_R = 2.4      # ボトムケースのボスを逃がす円
 CHAMFER = 3.0           # 上面の外周（奥、手前左、親指の下の円弧と直線）の面取り
-BOTTOM_CHAMFER = B.BED_CHAMFER  # 外壁の下端の外側の稜線（奥、手前左、親指の下の円弧と直線）の面取り。手に持ったときの当たりを
+BOTTOM_CHAMFER = B.BED_CHAMFER  # 外壁の下端の外側の稜線（外周の全周）の面取り。手に持ったときの当たりを
                                 # 柔らかくする。ボトムケースの底面の外周（0.3）にそろえる
 BED_CHAMFER = 0.3       # 上面（上面を下にして刷るので、印刷でベッドに当たる面）の縁の 45° の面取り: 外周の左右と右下の斜めの辺、
                         # キーの開口部の縁。1 層目（0.2）がつぶれて外や内へはみ出す分（エレファントフット）を、1 層目だけ約 0.2
@@ -257,13 +257,13 @@ def build(ceiling=NUT_CEILING):
                 out.append(e)
         return out
 
-    # 外壁の下端の外側の稜線の BOTTOM_CHAMFER の面取り（手前左、親指の下の円弧と直線）。内側（ボトムケースを囲む面）は面取り
-    # しない。上面の面取りと同じく、角の R1 の前にかける（R1 の後では、R1 を伝って左右の辺の下端にまで回ろうとして OCC で
-    # 作れない）。奥の辺は、R1 の前でも後でも OCC の面取りでは作れない（R1 が作れなくなるか、面取りが作れない）ので、R1 の後に
-    # 回転体で削る
-    front = [curves[i] for i in (P.I_FRONT_LEFT, P.I_THUMB, P.I_THUMB_LINE)]
+    # 外壁の下端の外側の稜線の BOTTOM_CHAMFER の面取り（奥の辺以外: 手前左、親指の下の円弧と直線、左右と右下の斜めの辺）。
+    # 内側（ボトムケースを囲む面）は面取りしない。上面の面取りと同じく、角の R1 の前にかける（R1 の後では、R1 を伝って奥の辺の
+    # 下端にまで回ろうとして OCC で作れない）。R1 は面取りの上で止まり、R1 の下端は面取りの斜面につながる。奥の辺は、R1 の前でも
+    # 後でも OCC の面取りでは作れない（R1 が作れなくなるか、面取りが作れない）ので、R1 の後に回転体で削る
+    lower = [curves[i] for i in (P.I_FRONT_LEFT, P.I_THUMB, P.I_THUMB_LINE, P.I_LEFT, P.I_RIGHT, P.I_SLANT)]
     edges = [e for e in case.edges()
-             if e.center().Z < HEIGHT - CHAMFER - 1 and any(on_curve(e.center(), c) for c in front)
+             if e.center().Z < HEIGHT - CHAMFER - 1 and any(on_curve(e.center(), c) for c in lower)
              and abs((e @ 0).Z - (e @ 1).Z) < 0.9 * (e @ 0 - e @ 1).length]
     case = case.chamfer(BOTTOM_CHAMFER, None, edges)
 
