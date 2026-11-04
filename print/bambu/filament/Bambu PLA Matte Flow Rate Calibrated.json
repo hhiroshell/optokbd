@@ -1,0 +1,15 @@
+{
+    "filament_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "filament_flow_ratio": [
+        "0.80262"
+    ],
+    "filament_settings_id": [
+        "Bambu PLA Matte Flow Rate Calibrated"
+    ],
+    "from": "User",
+    "inherits": "Bambu PLA Matte @BBL A1",
+    "name": "Bambu PLA Matte Flow Rate Calibrated",
+    "version": "2.8.0.6"
+}
