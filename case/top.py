@@ -176,6 +176,21 @@ def nut_test(ceiling):
     return flat
 
 
+SEAM_TEST_REACH = 22.0   # シームのテストピース: 奥の左の角から、奥の辺に沿って右へ、左の辺に沿って手前へ切り出す長さ
+
+
+def seam_test(case):
+    """シーム（外周の継ぎ目）の位置とスカーフ継ぎ目を試すテストピース: ケースのうち奥の左の角のまわりを、全高で切り出したもの。
+    本体と同じく上面を下にして、Y 軸のまわりに 180° 回した向き（キーボードの奥がプリンタの奥）で返す。z = 0 がベッド、
+    角の外側の頂点が x = y = 0。切り口も輪郭になるので、シームは角にペイントして位置を決める。"""
+    c = min((p for p in plan_corners(P.PLAN, L.TOP_OUTER) if p.Y > -30), key=lambda p: p.X)   # 奥の左の角
+    r = SEAM_TEST_REACH
+    box = Pos(c.X - 5 + (r + 5) / 2, c.Y - r + (r + 20) / 2, HEIGHT / 2) * Box(r + 5, r + 20, HEIGHT + 2)
+    piece = case & box
+    flat = Rot(0, 180, 0) * Pos(-c.X, -c.Y, -HEIGHT) * piece
+    return flat
+
+
 def wall_cut():
     """下端の切り欠きの断面（YZ 平面上 (y, z)）。手前はボトムケースの傾斜した底面に沿って切り、WALL_CUT_LAND_Y から奥へは
     直線で上げる（横から見ると、ボトムケースが奥へ太くなるくさび形の帯に見える）。奥の面（上から見ると円弧）の範囲では水平にして、
@@ -302,6 +317,14 @@ if __name__ == "__main__":
     for name, p in tests:
         mesher.add_shape(p, part_number=name)
     mesher.write(out / "top-nut-test-l.3mf")
+    # シームのテストピース（奥の左の角）
+    seam = seam_test(case)
+    export_step(seam, out / "top-seam-test-l.step")
+    export_stl(seam, out / "top-seam-test-l.stl")
+    mesher = Mesher()
+    mesher.add_shape(seam, part_number="top-seam-test")
+    mesher.write(out / "top-seam-test-l.3mf")
+    print(f"seam test volume = {seam.volume:.2f} mm^3, solids = {len(seam.solids())}")
     if "--show" in sys.argv:
         from ocp_vscode import show
         show(case)
