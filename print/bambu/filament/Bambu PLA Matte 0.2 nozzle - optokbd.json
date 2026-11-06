@@ -1,0 +1,21 @@
+{
+    "close_fan_the_first_x_layers": [
+        "3"
+    ],
+    "filament_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "filament_settings_id": [
+        "Bambu PLA Matte 0.2 nozzle - optokbd"
+    ],
+    "from": "User",
+    "inherits": "Bambu PLA Matte @BBL A1 0.2 nozzle",
+    "name": "Bambu PLA Matte 0.2 nozzle - optokbd",
+    "supertack_plate_temp": [
+        "55"
+    ],
+    "supertack_plate_temp_initial_layer": [
+        "55"
+    ],
+    "version": "2.8.0.6"
+}
