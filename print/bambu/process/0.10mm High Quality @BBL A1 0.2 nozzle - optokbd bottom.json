@@ -12,9 +12,9 @@
         "Direct Drive Standard"
     ],
     "print_settings_id": "0.10mm High Quality @BBL A1 0.2 nozzle - optokbd bottom",
-    "skeleton_infill_density": "35%",
-    "skin_infill_density": "35%",
-    "sparse_infill_density": "35%",
+    "skeleton_infill_density": "27%",
+    "skin_infill_density": "27%",
+    "sparse_infill_density": "27%",
     "support_interface_filament": "2",
     "support_interface_pattern": "rectilinear_interlaced",
     "support_interface_spacing": "0",
