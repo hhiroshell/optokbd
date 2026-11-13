@@ -1,39 +1,45 @@
 # DIY Keyboard "Opto" ⌨
 
-XIAO nRF52840 と ZMK で動く、左右分割のワイヤレスキーボード（片手 25 キー、7 列、MX ホットスワップ、ガスケットマウント）。
-ケースは [build123d](https://github.com/gumyr/build123d) で、基板は KiCad 10 で設計している。
+A split wireless keyboard powered by the XIAO nRF52840 and ZMK (25 keys and 7 columns per hand, MX hot-swap, gasket mount).
+The case is designed in [build123d](https://github.com/gumyr/build123d) and the PCBs in KiCad 10.
 
-- 今の版は v0.2.0。左手は組み上げて動作を確かめた。右手のケースは左手を左右反転して作る。設計の決めごとと部品は
-  [docs/v0.2.0.md](docs/v0.2.0.md)
-- v0.1.0（FreeCAD のケースと有線の基板）はタグ `v0.1.0` にある
-- ファームウェアは [hhiroshell/zmk-config](https://github.com/hhiroshell/zmk-config)
+![Exploded view of the left half](docs/images/exploded-l.svg)
 
-## ディレクトリ
+- The current version is v0.2.0. The left half is assembled and working. The right-hand case is the left one mirrored.
+  Design notes and the parts list are in [docs/v0.2.0.md](docs/v0.2.0.md) (in Japanese).
+- v0.1.0 (a FreeCAD case and wired PCBs) is available at the `v0.1.0` tag.
+- The firmware lives in [hhiroshell/zmk-config](https://github.com/hhiroshell/zmk-config).
+- Opto draws heavily on foostan's [Cornelius](https://github.com/foostan/corneliuskbd), and the exploded view above follows
+  the style of the one in its README.
 
-| ディレクトリ | 中身 |
+## Repository layout
+
+| Directory | Contents |
 |---|---|
-| `case/` | ケースとその周りの 3D モデル（build123d、uv のプロジェクト）。トップケース、ボトムケース、底蓋と収納部、パームレスト、はんだ付けの治具。フォームとガスケットのカットデータ、基板とプレートの外形もここで作る |
-| `pcbs/` | KiCad のプロジェクト。`matrix-left`、`matrix-right`（マトリクス基板）、`controller`（コントローラー基板）、`plate`（FR-4 のスイッチプレート）、`root`（全体の回路図） |
-| `plate/` | スイッチプレートの DXF（ケースの平面形の基準）。`plate_left.dxf` を使う |
-| `layout/` | キー配列（Keyboard Layout Editor の JSON） |
-| `lib/` | KiCad のフットプリント（XIAO nRF52840） |
-| `scripts/` | KiCad のスクリプト（部品の配置、外形、シルク、JLCPCB の発注データ）と、Bambu Studio のプリセットの同期 |
-| `print/bambu/` | Bambu Studio のプリセット（A1、0.2 mm ノズル） |
-| `docs/` | 設計メモ |
+| `case/` | 3D models of the case and related parts (build123d, a uv project): top case, bottom case, lid and controller bay, palm rest, and soldering jigs. Also generates the foam and gasket cut files and the PCB and plate outlines |
+| `pcbs/` | KiCad projects: `matrix-left` and `matrix-right` (matrix PCBs), `controller` (controller PCB), `plate` (FR-4 switch plate), `root` (schematic of the whole keyboard) |
+| `plate/` | Switch plate DXFs, the reference for the case outline. `plate_left.dxf` is the one in use |
+| `layout/` | Key layout (Keyboard Layout Editor JSON) |
+| `lib/` | KiCad footprint for the XIAO nRF52840 |
+| `scripts/` | KiCad scripts (part placement, outlines, silkscreen, JLCPCB order files) and a script that syncs the Bambu Studio presets |
+| `print/bambu/` | Bambu Studio presets (A1, 0.2 mm nozzle) |
+| `docs/` | Design notes and images |
 
-## ケースのモデルを作る
+## Building the case models
 
-[uv](https://docs.astral.sh/uv/) と KiCad（`kicad-cli` と、`pcbnew` の使える `/usr/bin/python3`）が必要。
+Requires [uv](https://docs.astral.sh/uv/) and KiCad (`kicad-cli` and a `/usr/bin/python3` that can import `pcbnew`).
 
 ```bash
 cd case
-./build.sh                          # out/ を消して、すべて作り直す
-uv run python top.py --show         # 1 つだけ作り、OCP CAD Viewer に表示する
+./build.sh                          # clear out/ and regenerate everything
+uv run python top.py --show         # build one part and show it in OCP CAD Viewer
+uv run python exploded.py           # regenerate docs/images/exploded-l.svg
 ```
 
-- `case/out/print/`: 印刷する部品（STEP / STL / 3MF）。ケース、底蓋、収納部の天井、パームレストは、左手（`-l`）と、それを左右に
-  反転した右手（`-r`）を書き出す
-- `case/out/order/`: 発注データ（遊舎工房に入稿するフォームとガスケットの SVG）と、KiCad の Edge.Cuts に入れる外形
+- `case/out/print/`: parts to print (STEP / STL / 3MF). The cases, the lid, the bay ceiling, and the palm rest are written for
+  the left hand (`-l`) and, mirrored, for the right hand (`-r`).
+- `case/out/order/`: files to order with (the foam and gasket SVGs for Yushakobo's laser cutting service) and the outlines
+  to load into KiCad's Edge.Cuts.
 
-フォームのカットデータ（`foam.py`）には、遊舎工房のテンプレート `Laser_Poron_template.svg` が要る。リポジトリには入れていないので、
-[デザインルールのページ](https://yushakobo.jp/lasercut/)のリンクから入手して `case/vendor/` に置く。
+The foam cut files (`foam.py`) need Yushakobo's template `Laser_Poron_template.svg`. It isn't included in this repository;
+download it from the link on the [design rules page](https://yushakobo.jp/lasercut/) and put it in `case/vendor/`.
