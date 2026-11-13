@@ -1,7 +1,7 @@
 # スイッチプレートを JLCPCB に FR-4 の基板（1.6 mm）として出すための KiCad の基板（pcbs/plate）を作る。KiCad の外で、
 # KiCad の Python（/usr/bin/python3 の pcbnew）で実行する。基板のファイルは作り直す（手で編集しない）。
 #   /usr/bin/python3 scripts/make_plate_board.py
-# 先に case/ で uv run python plate.py を実行して、外形とスイッチ穴（case/out/plate-outline.json）を書き出しておく。
+# 先に case/ で uv run python plate.py を実行して、外形とスイッチ穴（case/out/order/plate-outline.json）を書き出しておく。
 # - 左右共通: 左手の形で作り、右手には裏返して使う（銅も部品もないので、裏返すと x を反転した右手の形になる）
 # - Edge.Cuts: プレートの外形（ガスケットのタブ込み）とスイッチ穴（14 mm 角）
 # - 置く位置は左手のマトリクス基板と同じ（プレートの座標の原点を ORIGIN に。place_matrix.py の左手と同じ）
@@ -17,7 +17,7 @@ import pcbnew
 # ===== 設定 =====
 ROOT = Path(__file__).resolve().parent.parent
 NAME = "plate"
-OUTLINE_JSON = ROOT / "case/out/plate-outline.json"
+OUTLINE_JSON = ROOT / "case/out/order/plate-outline.json"
 ORIGIN = (50.0, 50.0)    # プレートの座標の原点を置く KiCad の位置 [mm]
 THICKNESS = 1.6          # 板厚 [mm]（ケースの plate.PLATE_T と同じ）
 EDGE_WIDTH = 0.15        # Edge.Cuts の線の太さ（0.05 だと JLCPCB のプレビューで穴の辺が消えて見えた。加工は線の中心で行う）

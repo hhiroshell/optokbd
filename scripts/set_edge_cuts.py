@@ -1,5 +1,5 @@
 # KiCad PCB エディタの「ツール → スクリプトコンソール」で、基板（コントローラーかマトリクス）を開いて実行する。
-# 基板の Edge.Cuts を消して、case/ のスクリプトが書き出した外形（case/out/*.json）で描き直す。どの外形を使うかは、
+# 基板の Edge.Cuts を消して、case/ のスクリプトが書き出した外形（case/out/order/*.json）で描き直す。どの外形を使うかは、
 # 開いている基板のファイル名で決める（BOARDS）。先に case/ で対応するスクリプトを実行しておく。
 #   exec(open('/home/hhiroshell/src/github.com/hhiroshell/optokbd/scripts/set_edge_cuts.py').read())
 # 外形は [(始点, 円弧の中点 または None, 終点)] の並び（mm、y は奥が正）。その座標の原点を KiCad の ORIGIN に置く
@@ -25,7 +25,7 @@ name = os.path.splitext(os.path.basename(board_file))[0]
 if name not in BOARDS:
     raise ValueError(f"{name}: 外形の設定がない（BOARDS に追加する）")
 json_name, origin, maker = BOARDS[name]
-outline_json = os.path.normpath(os.path.join(os.path.dirname(board_file), "..", "..", "case", "out", json_name))
+outline_json = os.path.normpath(os.path.join(os.path.dirname(board_file), "..", "..", "case", "out", "order", json_name))
 if not os.path.exists(outline_json):
     raise FileNotFoundError(f"{outline_json} がない（case/ で uv run python {maker} を実行する）")
 

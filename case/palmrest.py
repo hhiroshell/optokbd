@@ -11,7 +11,7 @@
 #   面取り（奥の縦の稜線は、奥の面と鋭い角度で交わるので除く）
 # - 印刷: 左の端の面を下にして立てて刷る。天面の曲がり（水平から傾斜への折れ目）と手前の丸めが壁になるので、積層の段差が
 #   天面に出ない。A1 はベッドが前後に動くので、断面の長い向き（奥行き）を前後にそろえる。ブリムを付ける
-# - 実行: uv run python palmrest.py [--show]   （out/ に STEP / STL / 3MF を書き出す。向きは置いた状態で、
+# - 実行: uv run python palmrest.py [--show]   （out/print/ に STEP / STL / 3MF を書き出す。向きは置いた状態で、
 #   底面が z = 0。--show で OCP CAD Viewer にキーボードと並べて表示）
 import math
 import sys
@@ -155,8 +155,8 @@ if __name__ == "__main__":
     kb = keyboard()
     gap = check(part, kb)
     bb = part.bounding_box()
-    out = Path(__file__).parent / "out"
-    out.mkdir(exist_ok=True)
+    out = Path(__file__).parent / "out" / "print"
+    out.mkdir(parents=True, exist_ok=True)
     placed = Pos(0, 0, -bb.min.Z) * part
     export_step(placed, out / "palmrest-l.step")
     export_stl(placed, out / "palmrest-l.stl", L.MESH_LINEAR, L.MESH_ANGULAR)

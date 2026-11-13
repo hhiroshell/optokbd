@@ -2,7 +2,7 @@
 # - 座標はプレート DXF のまま（mm、y は上向き＝奥が正、原点はキー配置の原点）
 # - 外形のうちタブを除いた部分は辺の定義として持ち、タブとキーの位置は DXF から読む
 # - 実行: uv run python plate.py   （JLCPCB に FR-4 の基板として出すプレートの外形とスイッチ穴（KiCad の Edge.Cuts に入れる）
-#   を out/plate-outline.json に書き出す。
+#   を out/order/plate-outline.json に書き出す。
 #   scripts/make_plate_board.py で読む。右手は同じプレートを裏返して使う（銅も部品もないので、裏返すと x を反転した形になる））
 import json
 import math
@@ -157,8 +157,8 @@ def board_outline_segments():
 
 
 if __name__ == "__main__":
-    out = Path(__file__).parent / "out"
-    out.mkdir(exist_ok=True)
+    out = Path(__file__).parent / "out" / "order"
+    out.mkdir(parents=True, exist_ok=True)
     (out / "plate-outline.json").write_text(json.dumps(board_outline_segments()))
     print("tabs: " + ", ".join(f"x {t.x0:.2f}..{t.x1:.2f} ({t.width:.2f})" for t in tabs()))
     print(f"holes = {len(Wire.combine(_dxf_edges(CUTOUT_LAYER)))}")

@@ -16,8 +16,8 @@
 #   収納部の壁から CEILING_LEDGE 外までを天井の下面の高さまで削って受けにする。ボトムケースは傾いた底面を下にして
 #   印刷するので、天井をボトムケースと一体にすると印刷の向きで水平な広い張り出しになり、その層で外形がゆがんで奥の
 #   面取りに筋が出た。受けは印刷の向きで上を向いた面なのでサポートが要らない。天井の部品は下面（底蓋に平行）を下にして刷る
-# - 実行: uv run python bay.py [--show]   （out/ に底蓋、収納部の天井、コントローラー基板の外形 DXF と、KiCad の Edge.Cuts
-#   に入れる外形の JSON を書き出す）
+# - 実行: uv run python bay.py [--show]   （out/print/ に底蓋と収納部の天井、out/order/ にコントローラー基板の
+#   外形 DXF と、KiCad の Edge.Cuts に入れる外形の JSON を書き出す）
 import json
 import math
 import sys
@@ -1122,14 +1122,16 @@ def export(shape_or_parts, path):
 
 if __name__ == "__main__":
     lid_part = lid()
-    out = Path(__file__).parent / "out"
-    out.mkdir(exist_ok=True)
+    out = Path(__file__).parent / "out" / "print"
+    order = Path(__file__).parent / "out" / "order"
+    out.mkdir(parents=True, exist_ok=True)
+    order.mkdir(parents=True, exist_ok=True)
     export(lid_part, out / "lid-l")
     ceiling_part = ceiling()
     export([("bay-ceiling", ceiling_print(ceiling_part))], out / "bay-ceiling-l")
-    export_board_dxf(out / "controller-board-l.dxf")
+    export_board_dxf(order / "controller-board-l.dxf")
     # KiCad の Edge.Cuts に入れる外形（scripts/set_edge_cuts.py で読む）
-    (out / "controller-board-outline.json").write_text(json.dumps(board_outline_segments()))
+    (order / "controller-board-outline.json").write_text(json.dumps(board_outline_segments()))
     print(f"lid volume = {lid_part.volume:.2f} mm^3, solids = {len(lid_part.solids())}")
     print(f"ceiling volume = {ceiling_part.volume:.2f} mm^3, solids = {len(ceiling_part.solids())}, "
           f"back screw wall = {back_screw_ledge_gap():.2f}")

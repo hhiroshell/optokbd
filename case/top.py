@@ -2,7 +2,7 @@
 # - 座標はプレート DXF と同じ（y は奥が正）。z = 0 が下端、z = 22.6 が上面
 # - 平面形はすべてプレートの外形からのオフセット（layout.py）。作り方は v0.1.0（FreeCAD 版）を踏襲
 # - 完全無線化に合わせて、v0.1.0 にあった Pro Micro の切り欠き・コネクタのポケット・TRRS の穴はない
-# - 実行: uv run python top.py [--show]   （out/ に STEP / STL / 3MF を書き出す。--show で OCP CAD Viewer に表示）
+# - 実行: uv run python top.py [--show]   （out/print/ に STEP / STL / 3MF を書き出す。--show で OCP CAD Viewer に表示）
 import math
 import sys
 from pathlib import Path
@@ -268,8 +268,8 @@ def build(ceiling=NUT_CEILING):
 
 if __name__ == "__main__":
     case = build()
-    out = Path(__file__).parent / "out"
-    out.mkdir(exist_ok=True)
+    out = Path(__file__).parent / "out" / "print"
+    out.mkdir(parents=True, exist_ok=True)
     export_step(case, out / "top-l.step")
     export_stl(case, out / "top-l.stl", L.MESH_LINEAR, L.MESH_ANGULAR)
     mesher = Mesher()  # 3D プリンタのスライサー用。単位は mm

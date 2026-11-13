@@ -17,7 +17,7 @@
 # - カットのパス: 穴（内周）はカット 1（赤）、外形はカット 2（青）。線幅 0.1 mm、塗りなし。上から見た向き（SVG の y は下向き）
 # - テンプレート: 遊舎工房の Laser_Poron_template.svg（デザインルールのページのリンクから。Inkscape 用）を TEMPLATE に置く
 #   （リポジトリには入れない）。注文するサイズのレイヤーだけを残し、サイズの文字（黒の塗り = 彫刻になる）と注意書きを消す
-# - 実行: uv run python foam.py [--show]   （kicad-cli と、pcbnew の使える /usr/bin/python3 が必要。out/ に入稿用の SVG と
+# - 実行: uv run python foam.py [--show]   （kicad-cli と、pcbnew の使える /usr/bin/python3 が必要。out/order/ に入稿用の SVG と
 #   確認用の PNG を書き出す。--show でケース・基板のモックと組み付けた状態を表示）
 import json
 import math
@@ -427,8 +427,8 @@ def grid(polys, cols, x0, y0):
 
 
 def main():
-    out = ROOT / "out"
-    out.mkdir(exist_ok=True)
+    out = ROOT / "out" / "order"
+    out.mkdir(parents=True, exist_ok=True)
     floor = floor_foams(case_cuts())
     for hand, (f, scraps) in floor.items():
         print(f"floor foam {hand}: {width(f):.2f} x {height(f):.2f} mm, holes {len(f.interiors)}, "

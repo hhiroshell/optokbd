@@ -1,7 +1,7 @@
 # ボトムケース（左手）。v0.2.0: plate/plate_left.dxf のプレートに合わせたもの。
 # - 座標はプレート DXF と同じ（y は奥が正）。z = 0 が底面の基準、z = 20 がトップケースとの合わせ面
 # - 平面形はすべてプレートの外形からのオフセット（layout.py）。作り方は v0.1.0（FreeCAD 版）を踏襲
-# - 実行: uv run python bottom.py [--show]   （out/ に STEP / STL / 3MF を書き出す。--show で OCP CAD Viewer に表示）
+# - 実行: uv run python bottom.py [--show]   （out/print/ に STEP / STL / 3MF を書き出す。--show で OCP CAD Viewer に表示）
 import math
 import sys
 from pathlib import Path
@@ -247,8 +247,8 @@ def check_feet(case):
 
 if __name__ == "__main__":
     case = build()
-    out = Path(__file__).parent / "out"
-    out.mkdir(exist_ok=True)
+    out = Path(__file__).parent / "out" / "print"
+    out.mkdir(parents=True, exist_ok=True)
     export_step(case, out / "bottom-l.step")
     export_stl(case, out / "bottom-l.stl", L.MESH_LINEAR, L.MESH_ANGULAR)
     mesher = Mesher()  # 3D プリンタのスライサー用。単位は mm

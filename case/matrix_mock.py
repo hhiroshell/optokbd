@@ -14,7 +14,7 @@
 #   開口（bay.floor_openings）を決めるのに使う。プレビュー用の形は matrix_j1()
 # - 高さ（ボトムケースの座標）: プレートの上面 24.0 から、MX の規格で基板の上面は 5.0 下
 # - 実行: uv run python matrix_mock.py [--show]   （kicad-cli が必要。KiCad の Edge.Cuts に入れる外形を
-#   out/matrix-board-l-outline.json と右手（x を反転）の out/matrix-board-r-outline.json に書き出す。--show でボトムケース、
+#   out/order/matrix-board-l-outline.json と右手（x を反転）の out/order/matrix-board-r-outline.json に書き出す。--show でボトムケース、
 #   底蓋、コントローラーと組み付けた状態を表示）
 import json
 import math
@@ -197,8 +197,8 @@ def matrix_mock():
 if __name__ == "__main__":
     import bay   # bay は天井の開口の位置をこのモジュール（J1 の位置）から読むので、ここで読み込む
     board, sw = matrix_mock()
-    out = Path(__file__).parent / "out"
-    out.mkdir(exist_ok=True)
+    out = Path(__file__).parent / "out" / "order"
+    out.mkdir(parents=True, exist_ok=True)
     (out / "matrix-board-l-outline.json").write_text(json.dumps(board_outline_segments()))
     (out / "matrix-board-r-outline.json").write_text(json.dumps(board_outline_segments(mirror=True)))
     print(f"switches = {len(sw)}, rotated = {[round(a, 1) for *_, a in sw if abs(a) > 0.1]}")

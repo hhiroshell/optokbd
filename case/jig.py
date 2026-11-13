@@ -15,7 +15,7 @@
 #   - USB-C の下に受け（電池の穴にこてを当てたときに XIAO を支える）。基板を持ち上げないよう少し低くする
 # - はんだ付けする所から、樹脂（PLA は 60 ℃ 前後で柔らかくなる）を離す: check() で確かめる
 # - 座標は基板の面の座標（mm、原点は奥の辺の直線部分の中央、y は奥が正。KiCad の補助原点と同じ）。台の上面が z = 0
-# - 実行: uv run python jig.py [--show]   （pcbnew の使える /usr/bin/python3 が必要。out/solder-jig-*.{step,stl,3mf}）
+# - 実行: uv run python jig.py [--show]   （pcbnew の使える /usr/bin/python3 が必要。out/print/solder-jig-*.{step,stl,3mf}）
 import json
 import math
 import subprocess
@@ -227,8 +227,8 @@ if __name__ == "__main__":
     assert res["flip: posts to courtyards"] >= 0.3
     assert res["top: J1 support to J1 pads"] >= 0.3
     assert res["flip: USB support to battery holes"] >= 0.5
-    out = Path(__file__).parent / "out"
-    out.mkdir(exist_ok=True)
+    out = Path(__file__).parent / "out" / "print"
+    out.mkdir(parents=True, exist_ok=True)
     bay.export([("solder-jig-top", top)], out / "solder-jig-top")
     bay.export([("solder-jig-flip", flip)], out / "solder-jig-flip")
     print(f"top volume = {top.volume:.2f} mm^3, solids = {len(top.solids())}, valid = {top.is_valid}")
