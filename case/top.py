@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from build123d import (
-    Axis, Box, Circle, Compound, Face, Kind, Mesher, Plane, Polyline, Pos, Rectangle, RectangleRounded, Rot, Solid, Vector,
+    Axis, Circle, Face, Kind, Mesher, Plane, Polyline, Pos, Rectangle, RectangleRounded, Rot, Solid, Vector,
     Wire, export_step, export_stl, extrude, offset, revolve,
 )
 
@@ -154,43 +154,6 @@ def screw_cut(screw, ceiling=NUT_CEILING):
     return cut
 
 
-NUT_TEST_SCREW = 1        # ナットのポケットのテストピースにするネジ（L.screws() の番号。奥の辺の中央。タブから離れている）
-NUT_TEST_MARGIN = 1.5     # テストピース: ポケットの左右（溝の幅の向き）に残す肉
-NUT_TEST_Z = (12.0, 19.0)  # テストピースの高さの範囲（トップケースの z）。上端は印刷のベッドの面になるので、NUT_Z[0] から
-                           # 層の厚さの整数倍だけ上にする
-assert _on_layer(NUT_TEST_Z[1] - NUT_Z[0])
-
-
-def nut_test(ceiling):
-    """ナットのポケットのはまり具合と、天井の刷れ方を試すテストピース: ケースのうち、奥の辺の中央のネジのまわりだけを、
-    ケースの内面（ポケットの口）から外面まで切り出したもの。ケースと同じく上面を下にして刷る向き（z = 0 がベッド）で返す。"""
-    s = L.screws()[NUT_TEST_SCREW]
-    case = build(ceiling)
-    t = Vector(-s.normal.Y, s.normal.X)
-    half = NUT_AF / math.sqrt(3) + NUT_TEST_MARGIN
-    z0, z1 = NUT_TEST_Z
-    box = Pos(s.pos.X, s.pos.Y, (z0 + z1) / 2) * Rot(0, 0, math.degrees(math.atan2(t.Y, t.X))) * Box(2 * half, 20, z1 - z0)
-    piece = case & box
-    # 印刷の向き: ネジの位置を原点に、溝の幅を x に、z を反転して上端 z1 をベッドに
-    flat = Rot(180, 0, 0) * Rot(0, 0, -math.degrees(math.atan2(t.Y, t.X))) * Pos(-s.pos.X, -s.pos.Y, -z1) * piece
-    return flat
-
-
-SEAM_TEST_REACH = 22.0   # シームのテストピース: 奥の左の角から、奥の辺に沿って右へ、左の辺に沿って手前へ切り出す長さ
-
-
-def seam_test(case):
-    """シーム（外周の継ぎ目）の位置とスカーフ継ぎ目を試すテストピース: ケースのうち奥の左の角のまわりを、全高で切り出したもの。
-    本体と同じく上面を下にして、Y 軸のまわりに 180° 回した向き（キーボードの奥がプリンタの奥）で返す。z = 0 がベッド、
-    角の外側の頂点が x = y = 0。切り口も輪郭になるので、シームは角にペイントして位置を決める。"""
-    c = min((p for p in plan_corners(P.PLAN, L.TOP_OUTER) if p.Y > -30), key=lambda p: p.X)   # 奥の左の角
-    r = SEAM_TEST_REACH
-    box = Pos(c.X - 5 + (r + 5) / 2, c.Y - r + (r + 20) / 2, HEIGHT / 2) * Box(r + 5, r + 20, HEIGHT + 2)
-    piece = case & box
-    flat = Rot(0, 180, 0) * Pos(-c.X, -c.Y, -HEIGHT) * piece
-    return flat
-
-
 def wall_cut():
     """下端の切り欠きの断面（YZ 平面上 (y, z)）。手前はボトムケースの傾斜した底面の L.REVEAL 上に沿って切り、WALL_CUT_LAND_Y から奥へは
     直線で上げる（横から見ると、ボトムケースが奥へ太くなるくさび形の帯に見える）。奥の面（上から見ると円弧）の範囲では水平にして、
@@ -313,22 +276,6 @@ if __name__ == "__main__":
     mesher.add_shape(case, L.MESH_LINEAR, L.MESH_ANGULAR)
     mesher.write(out / "top-l.3mf")
     print(f"volume = {case.volume:.2f} mm^3")
-    # ナットのポケットのテストピース: 段付きブリッジと捨て層を並べる（3MF では部品名で区別する）
-    tests = [(f"top-nut-test-{c}", Pos(14 * i, 0, 0) * nut_test(c)) for i, c in enumerate(("stepped", "membrane"))]
-    export_step(Compound([p for _, p in tests]), out / "top-nut-test-l.step")
-    export_stl(Compound([p for _, p in tests]), out / "top-nut-test-l.stl", L.MESH_LINEAR, L.MESH_ANGULAR)
-    mesher = Mesher()
-    for name, p in tests:
-        mesher.add_shape(p, L.MESH_LINEAR, L.MESH_ANGULAR, part_number=name)
-    mesher.write(out / "top-nut-test-l.3mf")
-    # シームのテストピース（奥の左の角）
-    seam = seam_test(case)
-    export_step(seam, out / "top-seam-test-l.step")
-    export_stl(seam, out / "top-seam-test-l.stl", L.MESH_LINEAR, L.MESH_ANGULAR)
-    mesher = Mesher()
-    mesher.add_shape(seam, L.MESH_LINEAR, L.MESH_ANGULAR, part_number="top-seam-test")
-    mesher.write(out / "top-seam-test-l.3mf")
-    print(f"seam test volume = {seam.volume:.2f} mm^3, solids = {len(seam.solids())}")
     if "--show" in sys.argv:
         from ocp_vscode import show
         show(case)

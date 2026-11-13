@@ -3,11 +3,10 @@
 #   プレートと上下 2 枚がほぼぴったり収まる厚さにする
 # - 上側のガスケットはベゼルの下面（top.CAVITY_TOP）より高くなるので、平面形はポケットの中（ケースの内面より外）に収める
 # - 座標はプレート DXF と同じ。z はトップケースの座標
-# - 実行: uv run python gasket.py [--show]   （out/ に印刷用の配置で STEP / STL / 3MF を書き出す。--show で組み付けた状態を表示）
+# - 実行: uv run python gasket.py [--show]   （厚さと各ガスケットの大きさを表示する。--show で組み付けた状態を表示）
 import sys
-from pathlib import Path
 
-from build123d import Compound, Mesher, Pos, export_step, export_stl, extrude
+from build123d import Pos, extrude
 
 import bottom as B
 import layout as L
@@ -48,28 +47,8 @@ def gaskets():
     return out
 
 
-def print_layout(parts):
-    """印刷用の配置: すべて z = 0 に置き、上側のガスケットは下側の 8 mm 奥に並べる。"""
-    placed = []
-    for name, g in parts:
-        bb = g.bounding_box()
-        dy = 8 if name.endswith("upper") else 0
-        placed.append((name, Pos(0, dy, -bb.min.Z) * g))
-    return placed
-
-
 if __name__ == "__main__":
     parts = gaskets()
-    placed = print_layout(parts)
-    out = Path(__file__).parent / "out"
-    out.mkdir(exist_ok=True)
-    compound = Compound([g for _, g in placed])
-    export_step(compound, out / "gasket-l.step")
-    export_stl(compound, out / "gasket-l.stl", L.MESH_LINEAR, L.MESH_ANGULAR)
-    mesher = Mesher()  # 3D プリンタのスライサー用。単位は mm。部品ごとに名前をつける
-    for name, g in placed:
-        mesher.add_shape(g, L.MESH_LINEAR, L.MESH_ANGULAR, part_number=name)
-    mesher.write(out / "gasket-l.3mf")
     print(f"thickness = {THICKNESS:.2f} mm, plate z = {PLATE_Z:.2f}..{PLATE_Z + PLATE_T:.2f}")
     for name, g in parts:
         bb = g.bounding_box()

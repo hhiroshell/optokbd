@@ -16,10 +16,8 @@
 #   収納部の壁から CEILING_LEDGE 外までを天井の下面の高さまで削って受けにする。ボトムケースは傾いた底面を下にして
 #   印刷するので、天井をボトムケースと一体にすると印刷の向きで水平な広い張り出しになり、その層で外形がゆがんで奥の
 #   面取りに筋が出た。受けは印刷の向きで上を向いた面なのでサポートが要らない。天井の部品は下面（底蓋に平行）を下にして刷る
-# - 実行: uv run python bay.py [--show]   （out/ に底蓋、収納部の天井、ネジまわりのテストピース、ナットの溝だけの
-#   テストピース、合わせ確認用のボトムケースの切り出し、
-#   基板の外形 DXF と、KiCad の Edge.Cuts に入れる外形の JSON を書き出す。仮のコントローラー基板と XIAO のモックは
-#   controller_test_board.py）
+# - 実行: uv run python bay.py [--show]   （out/ に底蓋、収納部の天井、コントローラー基板の外形 DXF と、KiCad の Edge.Cuts
+#   に入れる外形の JSON を書き出す）
 import json
 import math
 import sys
@@ -1042,53 +1040,6 @@ assert controller_wall_clearance() >= CONTROLLER_CLEAR - 1e-6
 assert usb_swing_clearance()[0] >= 0.1
 
 
-def screw_test(case, lid_part):
-    """ネジまわりのテストピース: 右手前の角（いちばん低いボス、基板の切り欠き）のまわりだけを切り出したボトムケース
-    （床の上面まで）と底蓋。"""
-    x, v, _, _ = [s for s in lid_screws_local() if s[2] > 0 and s[3] < 0][0]
-    cx, cy = boss_center(x, v)
-    region = Pos(cx - 4, cy + 2) * Rectangle(20, 18)
-    return case & prism(region, -30, B.FLOOR_Z), lid_part & prism(region)
-
-
-NUT_TEST_MARGIN = 1.2         # ナットの溝のテストピース: 溝とネジ穴のまわりに残す肉
-
-
-def nut_test(case):
-    """ナットの溝のはまり具合だけを試すテストピース: 右手前のボスの、ナットの溝（屋根を含む）とネジ穴のまわりだけを
-    底蓋の座標の箱とボスの平面形で切り出したもの（ボスの外の収納部の天井は張り出しになるので含めない。溝の口はボスの
-    丸い面に開く）。底面はボスの下面（底蓋の厚肉の上面に当たる面、底蓋と平行）。ボトムケースと同じく屋根が上になる
-    向きで刷れるよう、底面を z = 0 に寝かせた形も返す: (ケースの中の位置の形, 印刷の向きの形)。"""
-    x, v, sx, sv = [s for s in lid_screws_local() if s[2] > 0 and s[3] < 0][0]
-    m = NUT_TEST_MARGIN
-    reach = SCREW_BOSS_D / 2 + 2.0                 # 溝の口（nut_pocket と同じ）
-    r = NUT_AF / math.sqrt(3)                      # 六角形の頂点（壁の側）
-    x0, x1 = (x - reach, x + r + m) if sx > 0 else (x - r - m, x + reach)
-    v0, v1 = v - NUT_AF / 2 - m, v + NUT_AF / 2 + m
-    w0 = LID_T + LID_PAD[1]                        # ボスの下面
-    apex = SCREW_HEAD[1] + SCREW_LEN - NUT_TIP + nut_roof_h()     # 屋根の棟
-    w1 = min(apex + m, boss_top_w())               # 棟の上に m（ボスの上端まで）
-    assert w1 - apex >= 0.5                        # ケースと同じ（屋根の棟の上に 0.5 以上）
-    footprint = FRAME * Pos(0, 0, w0 - 1) * extrude(corner_footprint(x, v, sx, sv, SCREW_BOSS_D / 2), w1 - w0 + 2)
-    piece = case & local_box(x0, x1, v0, v1, w0, w1) & footprint
-    flat = Pos(-x, -v, -w0) * FRAME.to_local_coords(piece)
-    return piece, flat
-
-
-FIT_TEST_MARGIN = 6.0         # 合わせ確認用の切り出し: 底蓋の範囲から手前と左右へ広げる量
-
-
-def fit_test(case):
-    """底蓋とボトムケースの合わせ確認用: ボトムケースのうち、底蓋のまわり（手前と左右に FIT_TEST_MARGIN、奥は外面まで。
-    手前は J1 の溝の手前の端からも FIT_TEST_MARGIN / 2）を、底面から床の上面までの高さで切り出したもの。
-    床の上面を下にして印刷できる。"""
-    m = FIT_TEST_MARGIN
-    x0, x1 = LID_X[0] - m, LID_X[1] + m
-    y0, y1 = LID_FRONT_Y - max(m, J1_GROOVE_DEPTH + m / 2), 20.0
-    region = Pos((x0 + x1) / 2, (y0 + y1) / 2) * Rectangle(x1 - x0, y1 - y0)
-    return case & prism(region, -30, B.FLOOR_Z)
-
-
 def board_local_segments():
     """コントローラー基板の外形を、基板の面の座標（mm、原点は奥の辺の直線部分の中央、y は奥が正）で表した辺の並び:
     [(始点, 円弧の中点 または None, 終点)]。円弧は平面の円弧の中点を写した 3 点で表す（基板の面に写すと y 方向に
@@ -1134,18 +1085,6 @@ def board_holes_board():
     return [(x - BOARD_CX, v - vt) for x, v in board_holes_local()]
 
 
-def xiao_mock():
-    """組み付け確認用の XIAO と USB-C のモック: XIAO の基板と奥の端の小さな部品の高さまでの箱に USB-C（長円）を載せたもの
-    （USB-C は XIAO の奥の端から USB_OVERHANG 張り出す）。基板の面の座標で、下面を z = 0 に置く（印刷の向き）。
-    仮のコントローラー基板は controller_test_board.py（KiCad の穴つき）で作る。"""
-    h = XIAO_PCB_T + XIAO_EDGE_PARTS
-    xiao = Pos(0, -XIAO_D / 2, h / 2) * Box(XIAO_W, XIAO_D, h)
-    usb_len = 7.0 + USB_OVERHANG
-    usb_plane = Plane(origin=(0, USB_OVERHANG - usb_len, XIAO_PCB_T + USB_H / 2), x_dir=(1, 0, 0), z_dir=(0, 1, 0))
-    xiao += extrude(usb_plane * SlotOverall(USB_W, USB_H), usb_len)   # USB-C は長円の断面
-    return xiao
-
-
 def export_board_dxf(path, hole_d=BOARD_HOLE_D):
     """コントローラー基板の外形と M2 の穴を、基板の面の座標で DXF に書き出す。KiCad の Edge.Cuts に読み込む用。"""
     import ezdxf
@@ -1183,16 +1122,11 @@ def export(shape_or_parts, path):
 
 if __name__ == "__main__":
     lid_part = lid()
-    case = B.build()
     out = Path(__file__).parent / "out"
     out.mkdir(exist_ok=True)
     export(lid_part, out / "lid-l")
     ceiling_part = ceiling()
     export([("bay-ceiling", ceiling_print(ceiling_part))], out / "bay-ceiling-l")
-    case_piece, lid_piece = screw_test(case, lid_part)
-    export([("screw-test-case", case_piece), ("screw-test-lid", Pos(0, -25, 0) * lid_piece)], out / "screw-test-l")
-    export([("bay-fit-test-case", fit_test(case))], out / "bay-fit-test-l")
-    export([("nut-test", nut_test(case)[1])], out / "nut-test-l")
     export_board_dxf(out / "controller-board-l.dxf")
     # KiCad の Edge.Cuts に入れる外形（scripts/set_edge_cuts.py で読む）
     (out / "controller-board-outline.json").write_text(json.dumps(board_outline_segments()))
@@ -1201,5 +1135,6 @@ if __name__ == "__main__":
           f"back screw wall = {back_screw_ledge_gap():.2f}")
     if "--show" in sys.argv:
         from ocp_vscode import show
+        case = B.build()
         show(case, ceiling_part, lid_part, *dummies(), names=["bottom-l", "ceiling", "lid", "board", "xiao", "usb-c", "battery"],
              colors=["#5b8fd6", "#d98c5f", "#7f77dd", "#3b6d11", "#1d9e75", "#ba7517", "#888780"])

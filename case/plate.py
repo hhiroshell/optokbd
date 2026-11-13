@@ -1,8 +1,8 @@
 # スイッチプレート（左手）。ケースの平面形はすべてこのプレートの外形から決める。
 # - 座標はプレート DXF のまま（mm、y は上向き＝奥が正、原点はキー配置の原点）
 # - 外形のうちタブを除いた部分は辺の定義として持ち、タブとキーの位置は DXF から読む
-# - 実行: uv run python plate.py   （out/ に印刷用のモック plate-mock-l の STEP / STL / 3MF を DXF から書き出す。JLCPCB に
-#   FR-4 の基板として出すプレートの外形とスイッチ穴（KiCad の Edge.Cuts に入れる）を out/plate-outline.json に書き出す。
+# - 実行: uv run python plate.py   （JLCPCB に FR-4 の基板として出すプレートの外形とスイッチ穴（KiCad の Edge.Cuts に入れる）
+#   を out/plate-outline.json に書き出す。
 #   scripts/make_plate_board.py で読む。右手は同じプレートを裏返して使う（銅も部品もないので、裏返すと x を反転した形になる））
 import json
 import math
@@ -10,9 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import ezdxf
-from build123d import (
-    CenterArc, Face, GeomType, Line, Mesher, Pos, ThreePointArc, Vector, Wire, export_step, export_stl, extrude,
-)
+from build123d import CenterArc, Face, GeomType, Line, ThreePointArc, Vector, Wire
 
 from outline import plan_face
 
@@ -144,15 +142,6 @@ def _dist(p, curve):
     return v.X * d.Y - v.Y * d.X
 
 
-def mock():
-    """印刷用のモック: DXF の外形（タブ込み）を PLATE_T で押し出し、スイッチ穴（14 mm 角）を抜いたもの。下面が z = 0。"""
-    plate = extrude(outline(), PLATE_T)
-    for w in Wire.combine(_dxf_edges(CUTOUT_LAYER)):
-        # 押し出す向きを固定する（輪郭の向きで面の法線が下を向くと、穴が抜けない）
-        plate -= Pos(0, 0, -1) * extrude(Face(w), PLATE_T + 2, dir=(0, 0, 1))
-    return plate
-
-
 def board_outline_segments():
     """プレートを基板として発注するときの Edge.Cuts（外形とスイッチ穴）の辺の並び: [(始点, 円弧の中点 または None, 終点)]。
     scripts/set_edge_cuts.py と同じ形式。"""
@@ -168,16 +157,8 @@ def board_outline_segments():
 
 
 if __name__ == "__main__":
-    import layout as L   # layout は plate を読み込むので、ここで読む
-
-    part = mock()
     out = Path(__file__).parent / "out"
     out.mkdir(exist_ok=True)
-    export_step(part, out / "plate-mock-l.step")
-    export_stl(part, out / "plate-mock-l.stl", L.MESH_LINEAR, L.MESH_ANGULAR)
-    mesher = Mesher()  # 3D プリンタのスライサー用。単位は mm
-    mesher.add_shape(part, L.MESH_LINEAR, L.MESH_ANGULAR)
-    mesher.write(out / "plate-mock-l.3mf")
     (out / "plate-outline.json").write_text(json.dumps(board_outline_segments()))
     print("tabs: " + ", ".join(f"x {t.x0:.2f}..{t.x1:.2f} ({t.width:.2f})" for t in tabs()))
-    print(f"holes = {len(Wire.combine(_dxf_edges(CUTOUT_LAYER)))}, volume = {part.volume:.2f} mm^3, solids = {len(part.solids())}")
+    print(f"holes = {len(Wire.combine(_dxf_edges(CUTOUT_LAYER)))}")
