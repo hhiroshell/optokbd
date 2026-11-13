@@ -168,13 +168,15 @@ def board_outline_segments():
 
 
 if __name__ == "__main__":
+    import layout as L   # layout は plate を読み込むので、ここで読む
+
     part = mock()
     out = Path(__file__).parent / "out"
     out.mkdir(exist_ok=True)
     export_step(part, out / "plate-mock-l.step")
-    export_stl(part, out / "plate-mock-l.stl")
+    export_stl(part, out / "plate-mock-l.stl", L.MESH_LINEAR, L.MESH_ANGULAR)
     mesher = Mesher()  # 3D プリンタのスライサー用。単位は mm
-    mesher.add_shape(part)
+    mesher.add_shape(part, L.MESH_LINEAR, L.MESH_ANGULAR)
     mesher.write(out / "plate-mock-l.3mf")
     (out / "plate-outline.json").write_text(json.dumps(board_outline_segments()))
     print("tabs: " + ", ".join(f"x {t.x0:.2f}..{t.x1:.2f} ({t.width:.2f})" for t in tabs()))

@@ -304,25 +304,25 @@ if __name__ == "__main__":
     out = Path(__file__).parent / "out"
     out.mkdir(exist_ok=True)
     export_step(case, out / "top-l.step")
-    export_stl(case, out / "top-l.stl")
+    export_stl(case, out / "top-l.stl", L.MESH_LINEAR, L.MESH_ANGULAR)
     mesher = Mesher()  # 3D プリンタのスライサー用。単位は mm
-    mesher.add_shape(case)
+    mesher.add_shape(case, L.MESH_LINEAR, L.MESH_ANGULAR)
     mesher.write(out / "top-l.3mf")
     print(f"volume = {case.volume:.2f} mm^3")
     # ナットのポケットのテストピース: 段付きブリッジと捨て層を並べる（3MF では部品名で区別する）
     tests = [(f"top-nut-test-{c}", Pos(14 * i, 0, 0) * nut_test(c)) for i, c in enumerate(("stepped", "membrane"))]
     export_step(Compound([p for _, p in tests]), out / "top-nut-test-l.step")
-    export_stl(Compound([p for _, p in tests]), out / "top-nut-test-l.stl")
+    export_stl(Compound([p for _, p in tests]), out / "top-nut-test-l.stl", L.MESH_LINEAR, L.MESH_ANGULAR)
     mesher = Mesher()
     for name, p in tests:
-        mesher.add_shape(p, part_number=name)
+        mesher.add_shape(p, L.MESH_LINEAR, L.MESH_ANGULAR, part_number=name)
     mesher.write(out / "top-nut-test-l.3mf")
     # シームのテストピース（奥の左の角）
     seam = seam_test(case)
     export_step(seam, out / "top-seam-test-l.step")
-    export_stl(seam, out / "top-seam-test-l.stl")
+    export_stl(seam, out / "top-seam-test-l.stl", L.MESH_LINEAR, L.MESH_ANGULAR)
     mesher = Mesher()
-    mesher.add_shape(seam, part_number="top-seam-test")
+    mesher.add_shape(seam, L.MESH_LINEAR, L.MESH_ANGULAR, part_number="top-seam-test")
     mesher.write(out / "top-seam-test-l.3mf")
     print(f"seam test volume = {seam.volume:.2f} mm^3, solids = {len(seam.solids())}")
     if "--show" in sys.argv:

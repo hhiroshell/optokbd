@@ -1141,10 +1141,10 @@ def export_board_dxf(path, hole_d=BOARD_HOLE_D):
 def export(shape_or_parts, path):
     parts = shape_or_parts if isinstance(shape_or_parts, list) else [("part", shape_or_parts)]
     export_step(Compound([s for _, s in parts]), path.with_suffix(".step"))
-    export_stl(Compound([s for _, s in parts]), path.with_suffix(".stl"))
+    export_stl(Compound([s for _, s in parts]), path.with_suffix(".stl"), L.MESH_LINEAR, L.MESH_ANGULAR)
     m = Mesher()  # 3D プリンタのスライサー用。単位は mm
     for name, s in parts:
-        m.add_shape(s, part_number=name)
+        m.add_shape(s, L.MESH_LINEAR, L.MESH_ANGULAR, part_number=name)
     m.write(path.with_suffix(".3mf"))
 
 

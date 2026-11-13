@@ -231,9 +231,9 @@ if __name__ == "__main__":
     out = Path(__file__).parent / "out"
     out.mkdir(exist_ok=True)
     export_step(case, out / "bottom-l.step")
-    export_stl(case, out / "bottom-l.stl")
+    export_stl(case, out / "bottom-l.stl", L.MESH_LINEAR, L.MESH_ANGULAR)
     mesher = Mesher()  # 3D プリンタのスライサー用。単位は mm
-    mesher.add_shape(case)
+    mesher.add_shape(case, L.MESH_LINEAR, L.MESH_ANGULAR)
     mesher.write(out / "bottom-l.3mf")
     print(f"volume = {case.volume:.2f} mm^3, foot edge clearance = {check_feet(case):.2f} mm")
     # 0.5 mm 刻みで探した位置なので、少しの差は許す。底面の縁の面取りの分だけ、平らな所の縁は内へ入る

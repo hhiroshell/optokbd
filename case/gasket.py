@@ -65,10 +65,10 @@ if __name__ == "__main__":
     out.mkdir(exist_ok=True)
     compound = Compound([g for _, g in placed])
     export_step(compound, out / "gasket-l.step")
-    export_stl(compound, out / "gasket-l.stl")
+    export_stl(compound, out / "gasket-l.stl", L.MESH_LINEAR, L.MESH_ANGULAR)
     mesher = Mesher()  # 3D プリンタのスライサー用。単位は mm。部品ごとに名前をつける
     for name, g in placed:
-        mesher.add_shape(g, part_number=name)
+        mesher.add_shape(g, L.MESH_LINEAR, L.MESH_ANGULAR, part_number=name)
     mesher.write(out / "gasket-l.3mf")
     print(f"thickness = {THICKNESS:.2f} mm, plate z = {PLATE_Z:.2f}..{PLATE_Z + PLATE_T:.2f}")
     for name, g in parts:
