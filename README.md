@@ -3,7 +3,8 @@
 XIAO nRF52840 と ZMK で動く、左右分割のワイヤレスキーボード（片手 25 キー、7 列、MX ホットスワップ、ガスケットマウント）。
 ケースは [build123d](https://github.com/gumyr/build123d) で、基板は KiCad 10 で設計している。
 
-- 今の版は v0.2.0（左手は完成、右手はこれから）。設計の決めごとと部品は [docs/v0.2.0.md](docs/v0.2.0.md)
+- 今の版は v0.2.0。左手は組み上げて動作を確かめた。右手のケースは左手を左右反転して作る。設計の決めごとと部品は
+  [docs/v0.2.0.md](docs/v0.2.0.md)
 - v0.1.0（FreeCAD のケースと有線の基板）はタグ `v0.1.0` にある
 - ファームウェアは [hhiroshell/zmk-config](https://github.com/hhiroshell/zmk-config)
 
@@ -30,7 +31,8 @@ cd case
 uv run python top.py --show         # 1 つだけ作り、OCP CAD Viewer に表示する
 ```
 
-- `case/out/print/`: 印刷する部品（STEP / STL / 3MF）
+- `case/out/print/`: 印刷する部品（STEP / STL / 3MF）。ケース、底蓋、収納部の天井、パームレストは、左手（`-l`）と、それを左右に
+  反転した右手（`-r`）を書き出す
 - `case/out/order/`: 発注データ（遊舎工房に入稿するフォームとガスケットの SVG）と、KiCad の Edge.Cuts に入れる外形
 
 フォームのカットデータ（`foam.py`）には、遊舎工房のテンプレート `Laser_Poron_template.svg` が要る。リポジトリには入れていないので、
