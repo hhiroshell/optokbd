@@ -123,6 +123,10 @@ J1_GROOVE_R = 1.5             # 溝の手前の角の丸め
 # 面で厚さ J1_LIP_T。下面は先端の下から手前の面へ、底蓋（印刷の向きでは水平）に対して 45° で下がる（サポートなしで刷れる）
 J1_LIP = 2.0                  # 張り出しの長さ（溝の手前の面から奥へ）
 J1_LIP_T = 0.6                # 張り出しの先端の厚さ
+# 溝の底と収納部の手前の壁の面の角（溝の下に残した壁の上の奥の角）を 45° の斜面で削る。底蓋を閉じるとき、垂れた
+# ケーブルを底蓋の手前の端が斜面に沿って溝へ押し上げ、底蓋と壁の間に挟まないようにする。斜面の下の端は底蓋の上面の高さ
+# （印刷の向きでは上向きの斜面なので、サポートは要らない）
+J1_RAMP = STANDOFF            # 斜面の大きさ（v と w のそれぞれ）
 
 # 底蓋を外すときに爪を掛ける切り欠き: 底蓋の手前の辺の中央に置く。収納部の手前の壁の下端（底蓋の手前の端の前）を、
 # 底面から上へ 45° の斜面で削る。爪を斜面に沿って差し込み、底蓋の手前の端の内面に掛けて引き下ろす。斜面は、壁の面に
@@ -836,7 +840,11 @@ def j1_groove():
     wt = (B.FLOOR_Z - z0) / math.cos(A) - J1_LIP_T
     lip = Polygon((v0 - 5, wt - J1_LIP - 5), (vt, wt), (vt, wt + 40), (v0 - 5, wt + 40), align=None)
     groove -= FRAME * extrude(Plane.YZ * lip, J1_POCKET_W + 10, both=True).moved(Pos(BOARD_CX, 0, 0))
-    return groove
+    # 壁の上の角の斜面（手前の広い所の幅だけ）
+    c = J1_RAMP
+    ramp = Polygon((vf - c, w0 + 1), (vf - c, w0), (vf, w0 - c), (vf, w0 + 1), align=None)
+    return groove + FRAME * extrude(Plane.YZ * ramp, J1_POCKET_W / 2, both=True).moved(Pos(BOARD_CX, 0, 0))
+
 
 # J1 の溝が手前の右のボス（とナットの溝の口）から離れていること。手前の広い所は、ボスが手前の壁へ入り込む所から 1 mm
 assert BOARD_CX + J1_GROOVE_W / 2 <= LID_X[1] - LID_SCREW_INSET - SCREW_BOSS_D / 2 - 2.0 - 1.0
