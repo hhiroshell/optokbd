@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 
 from build123d import (
-    Align, Box, Circle, Compound, Face, GeomType, Line, Mesher, Plane, Polyline, Pos, Rectangle, RectangleRounded, SlotOverall, Solid,
+    Align, Box, Circle, Compound, Face, GeomType, Line, Mesher, Plane, Polygon, Polyline, Pos, Rectangle, RectangleRounded, SlotOverall, Solid,
     ThreePointArc, Wire,
     export_step, export_stl, extrude, fillet, loft, mirror, offset,
 )
@@ -109,12 +109,20 @@ PLUG_GAP = 2.0                # くぼみの底: USB-C の口から奥へ。ケ�
                               # 触れずに少し離れるので、その分くぼみを浅くして収納部の奥の壁を残す（要実測）
 
 # J1（基板の手前の端の近く、差し込み口は手前）に挿したプラグとケーブルの溝: 収納部の手前の壁から手前へ掘り込み、
-# 上は床を抜いてボトムケースの内側の空間までつなげる（天井を作らない）。平面形は J1 の中心（基板の中心）
-# に合わせた長方形で、手前の角を丸める。手前の面は底蓋に垂直。底は基板の下面の高さで、それより下は収納部の手前の壁を
-# そのまま残す（底蓋の開口の形は変えない）
-J1_GROOVE_W = 20.0            # 溝の幅（x）。J1（幅約 14）+ 両側 3
-J1_GROOVE_DEPTH = 8.0         # 溝の奥行き: 収納部の手前の壁から手前へ（プラグのはみ出しとケーブルの曲げ。要実測）
+# 上は床を抜いてボトムケースの内側の空間までつなげる（天井を作らない）。平面形は J1 の中心（基板の中心）に合わせ、
+# 収納部の中は幅 J1_GROOVE_W、手前の壁より手前は幅 J1_POCKET_W に広げる（手前の角を丸める）。50 mm のケーブル（底蓋を
+# 外せる長さ）の余りを、手前の広い所に横へ輪にして収める（奥行き 8 では収まらなかった。ケーブルの余りは壁から手前へ
+# 約 16 mm 出る。奥行きを 20 にすると、手前ほど底面が高くなるので溝の手前の端が浅くなった）。手前の面は底蓋に垂直。
+# 底は基板の下面の高さで、それより下は収納部の手前の壁をそのまま残す（底蓋の開口の形は変えない）
+J1_GROOVE_W = 20.0            # 収納部の中の幅（x）。J1（幅約 14）+ 両側 3。手前の右のボスとナットの溝を避ける
+J1_POCKET_W = 27.0            # 手前の壁より手前の幅。左は爪の切り欠き、右は手前の右のボス（壁から 1 mm 手前まで入る）を避ける
+J1_GROOVE_DEPTH = 14.0        # 溝の奥行き: 収納部の手前の壁から手前へ
 J1_GROOVE_R = 1.5             # 溝の手前の角の丸め
+# 溝の手前の端の張り出し: ケーブルの余りが浮いて、床のフォームごとマトリクス基板を押し上げないように、溝の手前の面の
+# 上端から奥へ張り出して、輪にしたケーブルの先を引っ掛けて押さえる。上面は床の上面と同じ高さ、先端は底蓋に垂直な
+# 面で厚さ J1_LIP_T。下面は先端の下から手前の面へ、底蓋（印刷の向きでは水平）に対して 45° で下がる（サポートなしで刷れる）
+J1_LIP = 2.0                  # 張り出しの長さ（溝の手前の面から奥へ）
+J1_LIP_T = 0.6                # 張り出しの先端の厚さ
 
 # 底蓋を外すときに爪を掛ける切り欠き: 底蓋の手前の辺の中央に置く。収納部の手前の壁の下端（底蓋の手前の端の前）を、
 # 底面から上へ 45° の斜面で削る。爪を斜面に沿って差し込み、底蓋の手前の端の内面に掛けて引き下ろす。斜面は、壁の面に
@@ -804,7 +812,7 @@ def nail_notch():
 
 
 # 爪の切り欠きが J1 の溝から 1 mm 以上離れていること。底蓋の側の溝が、電池の枠の手前の壁を削らないこと
-assert nail_x() + NAIL_W / 2 <= BOARD_CX - J1_GROOVE_W / 2 - 1.0
+assert nail_x() + NAIL_W / 2 <= BOARD_CX - J1_POCKET_W / 2 - 1.0
 assert v_of(LID_FRONT_Y) + NAIL_SLOT <= battery_outline(BATTERY_FRAME[2] + BATTERY_FRAME[0]).bounding_box().min.Y
 
 
@@ -812,14 +820,27 @@ def j1_groove():
     """J1 のプラグとケーブルの溝（FRAME の w の向きの柱）。奥は収納部の中まで伸ばして、収納部の手前の壁に重ねる。"""
     vf = v_of(LID_FRONT_Y) - LID_GAP
     v0, v1 = vf - J1_GROOVE_DEPTH, vf + 2 * J1_GROOVE_R
-    rect = Pos(BOARD_CX, (v0 + v1) / 2) * Rectangle(J1_GROOVE_W, v1 - v0)
-    face = fillet(rect.vertices(), J1_GROOVE_R).faces()[0]
+    a, b = J1_GROOVE_W / 2, J1_POCKET_W / 2
+    outline = Polygon(*[(BOARD_CX + x, v) for x, v in
+                        ((-b, v0), (b, v0), (b, vf), (a, vf), (a, v1), (-a, v1), (-a, vf), (-b, vf))], align=None)
+    # 丸めるのは手前の角と、収納部の中の奥の角だけ。手前の壁の線の上の角（広い所の奥の角と、幅の変わる入隅）は丸めない
+    # （広い所の奥の角を丸めると、丸めの外に壁の線に沿って刃のように薄い肉が残る）
+    corners = [p for p in outline.vertices() if abs(p.Y - vf) > 1e-6]
+    face = fillet(corners, J1_GROOVE_R).faces()[0]
     w0 = LID_T + STANDOFF
-    return (FRAME * Pos(0, 0, w0) * extrude(face, 40)) & prism(Rectangle(1000, 1000), -30, B.HEIGHT + 1)
+    groove = (FRAME * Pos(0, 0, w0) * extrude(face, 40)) & prism(Rectangle(1000, 1000), -30, B.HEIGHT + 1)
+    # 張り出し（FRAME の v-w の断面を x の向きに押し出した、上へ開いた形）を溝から除く。先端の下の w は、先端の v での
+    # 床の上面の高さから J1_LIP_T 下
+    vt = v0 + J1_LIP
+    z0 = FRAME.from_local_coords((0, vt, 0)).Z
+    wt = (B.FLOOR_Z - z0) / math.cos(A) - J1_LIP_T
+    lip = Polygon((v0 - 5, wt - J1_LIP - 5), (vt, wt), (vt, wt + 40), (v0 - 5, wt + 40), align=None)
+    groove -= FRAME * extrude(Plane.YZ * lip, J1_POCKET_W + 10, both=True).moved(Pos(BOARD_CX, 0, 0))
+    return groove
 
-
-# J1 の溝が手前の右のボス（とナットの溝の口）から離れていること
+# J1 の溝が手前の右のボス（とナットの溝の口）から離れていること。手前の広い所は、ボスが手前の壁へ入り込む所から 1 mm
 assert BOARD_CX + J1_GROOVE_W / 2 <= LID_X[1] - LID_SCREW_INSET - SCREW_BOSS_D / 2 - 2.0 - 1.0
+assert BOARD_CX + J1_POCKET_W / 2 <= LID_X[1] - LID_SCREW_INSET - SCREW_BOSS_D / 2 - 1.0
 
 
 def boss_solid(x, v, sx, sv):
