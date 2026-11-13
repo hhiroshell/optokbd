@@ -4,7 +4,6 @@
 # - キーキャップとスイッチは、形を大まかにかたどったもの（MX のスイッチと、上へすぼまるキーキャップ）
 # - 実行: uv run python exploded.py   （kicad-cli と、pcbnew の使える /usr/bin/python3 が必要。../docs/images/exploded-l.svg を
 #   書き出す）
-import math
 from pathlib import Path
 
 from build123d import Align, Box, Compound, Edge, Plane, Pos, Rot, RectangleRounded, Vector, extrude, loft
