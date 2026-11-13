@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import ezdxf
-from build123d import CenterArc, Face, GeomType, Line, ThreePointArc, Vector, Wire
+from build123d import CenterArc, Face, GeomType, Line, Pos, ThreePointArc, Vector, Wire, extrude
 
 from outline import plan_face
 
@@ -140,6 +140,15 @@ def _dist(p, curve):
     q, d = Vector(*curve[1]), Vector(*curve[2]).normalized()
     v = Vector(p.X, p.Y) - q
     return v.X * d.Y - v.Y * d.X
+
+
+def solid():
+    """プレートの形（分解図など）: DXF の外形（タブ込み）を PLATE_T で押し出し、スイッチ穴（14 mm 角）を抜いたもの。下面が z = 0。"""
+    plate = extrude(outline(), PLATE_T)
+    for w in Wire.combine(_dxf_edges(CUTOUT_LAYER)):
+        # 押し出す向きを固定する（輪郭の向きで面の法線が下を向くと、穴が抜けない）
+        plate -= Pos(0, 0, -1) * extrude(Face(w), PLATE_T + 2, dir=(0, 0, 1))
+    return plate
 
 
 def board_outline_segments():
