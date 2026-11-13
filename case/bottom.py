@@ -41,6 +41,13 @@ SCREW_HEAD_H = 2.0      # M2 の六角穴付きボルトの頭の高さ（Ø3.8 
 BACK_SEAT_Z = BEVEL_H + SCREW_HEAD_H + 0.3   # 奥のネジの座面（ネジ頭の下面を面取りの上端より 0.3 上に）
 BACK_BOSS_R = L.BOSS_R + 1.2              # 台の半径（ネジ頭の穴のまわりに 1.2）。外形の外へは出さない
 BACK_BOSS_TOP = BACK_SEAT_Z + 0.2         # 台の上端。マトリクス基板の下面（17.0）より下
+# 手前のネジも、ネジ頭の穴が外面より外へはみ出す（穴の外の縁はプレートから L.SCREW_FROM_PLATE + L.BOSS_R = 4.7、外形は 3.5）。
+# トップケースの下端を底面から L.REVEAL 上げたので、座面を上げてネジ頭の下面をトップケースの下端より 0.3 上に沈める（確かめは
+# tilt_z の後）。奥と同じく、床より上のネジ頭の穴を、壁を内側へ厚くした台で囲む。台の内側の縁はプレートの外形まで（マトリクス
+# 基板の手前の辺はプレートの 0.75 内側にあり、プレートが L.PLATE_GAP 手前へ寄っても台の上に来ない。台の上端も基板の下面より下）
+FRONT_SEAT_Z = 16.4
+FRONT_BOSS_R = L.SCREW_FROM_PLATE                # 台の半径（ネジ頭の穴のまわりに 0.7）
+FRONT_BOSS_TOP = FRONT_SEAT_Z + 0.2
 BEVEL_OVERRUN = 0.1     # 面取りを削る三角形を、外面より外へ延ばす量（奥の壁と稜線が重ならないように）。床の上面より上で外面の外へ
                         # 張り出したネジのボス（L.BOSS_R）を斜面の延長が削らないよう、延長の先は床の上面より低くする
 BEVEL_W = 6.0
@@ -76,6 +83,16 @@ def tilt_z(y, y_front):
     return TILT_FRONT_Z - TILT_SLOPE * (y - y_front)
 
 
+def _front_seat_clear():
+    """手前のネジ頭の下面と、トップケースの下端（ネジ頭の穴の最も手前の点で）の高さの差の最小値。"""
+    y_front = L.face(L.BOTTOM_OUTER).bounding_box().min.Y
+    return min(FRONT_SEAT_Z - SCREW_HEAD_H - (tilt_z(s.pos.Y - L.BOSS_R, y_front) + L.REVEAL)
+               for s in L.screws() if not s.back)
+
+
+assert _front_seat_clear() >= 0.3 - 0.05   # 0.1 刻みで決めた座面なので、少しの差は許す
+
+
 def bevel_face(case):
     """奥の面取りの斜面（直線の断面なら円すい、円弧の断面ならトーラスの面）。"""
     return max((f for f in case.faces() if f.geom_type in (GeomType.CONE, GeomType.TORUS, GeomType.REVOLUTION)),
@@ -95,11 +112,11 @@ def build():
     # 床。左右には壁がない
     case -= Pos(0, 0, FLOOR_Z) * extrude(L.face(L.BOTTOM_FLOOR), HEIGHT)
 
-    # 奥のネジのまわりの台（床の上に、ネジ頭の穴を囲む）
-    inside = Pos(0, 0, FLOOR_Z - 0.1) * extrude(outer, BACK_BOSS_TOP - FLOOR_Z + 0.1)
+    # ネジのまわりの台（床の上に、ネジ頭の穴を囲む）
     for s in screws:
-        if s.back:
-            case += inside & (Pos(s.pos.X, s.pos.Y, FLOOR_Z - 0.1) * Solid.make_cylinder(BACK_BOSS_R, BACK_BOSS_TOP - FLOOR_Z + 0.1))
+        r, top = (BACK_BOSS_R, BACK_BOSS_TOP) if s.back else (FRONT_BOSS_R, FRONT_BOSS_TOP)
+        inside = Pos(0, 0, FLOOR_Z - 0.1) * extrude(outer, top - FLOOR_Z + 0.1)
+        case += inside & (Pos(s.pos.X, s.pos.Y, FLOOR_Z - 0.1) * Solid.make_cylinder(r, top - FLOOR_Z + 0.1))
 
     # 底面の傾斜。YZ 平面に描いて x 方向に貫通させる
     y_front = L.face(L.BOTTOM_OUTER).bounding_box().min.Y   # 傾斜の基準は BOTTOM_OUTER（BOTTOM_SIDE ではない）
@@ -146,7 +163,7 @@ def build():
     # 奥のネジ頭の穴は外面より外へはみ出して面取りに抜けるので、穴の中心から外へ穴の直径の幅でまっすぐ延ばして U 字にする
     # （円のままだと外面の位置で幅が狭まり、抜けの縁がすぼまって見える）
     for s in screws:
-        seat = BACK_SEAT_Z if s.back else FLOOR_Z
+        seat = BACK_SEAT_Z if s.back else FRONT_SEAT_Z
         case -= Pos(s.pos.X, s.pos.Y, -1) * Solid.make_cylinder(L.BOSS_R, seat + 1)
         if s.back:
             ang = math.degrees(math.atan2(s.normal.Y, s.normal.X))

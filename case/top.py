@@ -40,11 +40,11 @@ NUT_Z = (15.6, 17.2)    # ナットのポケットの高さ（段差 INNER_TOP �
 NUT_MOUTH_OVER = 0.5    # ナットのポケットの溝を、内側の空間の壁より先へ伸ばす量（口を確実に開ける。以前は溝の端が二面幅の半分の
                         # 位置で、壁をわずか 0.1 突き抜けて口が開いていただけで、二面幅を 4.0 より狭めると口がふさがる）
 NUT_AF = 4.2            # ナットのポケットの二面幅（M2 ナット 4.0 mm + 0.2）
-HOLE_TOP = 18.6         # ネジ穴の深さ（ナットの上に 1.2 mm）
 CASE_SCREW_LEN = 10.0   # ケースを留めるネジ（M2 × 10）
-# 奥のネジは座面がボトムケースの面取りより上にあり（bottom.BACK_SEAT_Z）、ネジの先端も高くなるので、穴を深くする
+# ネジ穴の深さ（ネジの先端の 0.2 上）。座面はどちらも床より上にある（bottom.BACK_SEAT_Z、bottom.FRONT_SEAT_Z）
 HOLE_TOP_BACK = B.BACK_SEAT_Z - L.Z_OFFSET + CASE_SCREW_LEN + 0.2
-assert NUT_Z[1] <= B.FLOOR_Z - L.Z_OFFSET + CASE_SCREW_LEN <= HOLE_TOP   # 手前のネジ: 先端がナットの上に出て、穴に収まる
+HOLE_TOP = B.FRONT_SEAT_Z - L.Z_OFFSET + CASE_SCREW_LEN + 0.2
+assert NUT_Z[1] <= min(B.BACK_SEAT_Z, B.FRONT_SEAT_Z) - L.Z_OFFSET + CASE_SCREW_LEN   # ネジの先端がナットの上に出る
 assert NUT_Z[0] - INNER_TOP >= 2.5 - 1e-6                                # ナットの下の肉
 # ナットのポケットの天井（上面を下にして刷るので、ナットが当たる z = NUT_Z[0] の面が印刷の天井になる）の作り方。サポートを
 # 使わず、幅 4.2 の天井をブリッジで刷るための形（ネジ穴があると、ブリッジの線が穴の縁で途切れて垂れる）:
@@ -69,7 +69,7 @@ BEZEL_MARGIN = 0.6      # キーの開口部: 1U の枠から外へ（18 mm の�
                         # 平らな幅を残すため（BED_CHAMFER を両側に入れる）戻した
 BEZEL_ROUND = 0.5       # キーの開口部の内角の丸め
 
-# 下端の切り欠き: 手前はボトムケースの傾斜した底面に合わせ、WALL_CUT_LAND_Y から奥は直線で上げ、奥の面では水平（ボトムケースの
+# 下端の切り欠き: 手前はボトムケースの傾斜した底面から L.REVEAL 上に沿わせ、WALL_CUT_LAND_Y から奥は直線で上げ、奥の面では水平（ボトムケースの
 # 奥の面取りを逃がす）
 WALL_CUT_BACK_Z = B.BEVEL_H - L.Z_OFFSET        # 奥の面の高さ（7.5）。ボトムケースの面取りの上端（奥の外面の曲がった稜線）にそろえる
 WALL_CUT_LAND_Y = -48.0                          # 直線がボトムケースの底面の傾斜から離れる位置（y。側面の中央より 12 mm 手前）
@@ -192,20 +192,24 @@ def seam_test(case):
 
 
 def wall_cut():
-    """下端の切り欠きの断面（YZ 平面上 (y, z)）。手前はボトムケースの傾斜した底面に沿って切り、WALL_CUT_LAND_Y から奥へは
+    """下端の切り欠きの断面（YZ 平面上 (y, z)）。手前はボトムケースの傾斜した底面の L.REVEAL 上に沿って切り、WALL_CUT_LAND_Y から奥へは
     直線で上げる（横から見ると、ボトムケースが奥へ太くなるくさび形の帯に見える）。奥の面（上から見ると円弧）の範囲では水平にして、
     奥の面の下端の高さを WALL_CUT_BACK_Z でそろえる（直線のままだと、円弧の中央ほど奥にあるぶん切り欠きが高くなる）。"""
     y_front = L.face(L.BOTTOM_OUTER).bounding_box().min.Y   # ボトムケースの最も手前
-    y0 = y_front + (B.TILT_FRONT_Z - L.Z_OFFSET) / B.TILT_SLOPE   # ボトムケースの底面がトップケースの z = 0 を横切る位置
-    assert WALL_CUT_LAND_Y < y0   # 着地点はボトムケースの底面の傾斜の上（そこより奥は z = 0 より下）
+
+    def edge_z(y):   # 手前の下端: ボトムケースの底面から L.REVEAL 上
+        return B.tilt_z(y, y_front) - L.Z_OFFSET + L.REVEAL
+
+    y0 = y_front + (B.TILT_FRONT_Z - L.Z_OFFSET + L.REVEAL) / B.TILT_SLOPE   # 手前の下端がトップケースの z = 0 を横切る位置
+    assert WALL_CUT_LAND_Y < y0   # 着地点は傾斜の上（そこより奥は z = 0 より下）
     y_land = WALL_CUT_LAND_Y
-    z_land = B.tilt_z(y_land, y_front) - L.Z_OFFSET
+    z_land = edge_z(y_land)
     # 水平にし始める所: 奥の面の両端（左右の側面との角。R1 の丸めの分だけ手前）
     y_flat = min(c.Y for c in plan_corners(P.PLAN, L.TOP_OUTER) if c.Y > y0) - 1.0
     bb = L.face(L.TOP_OUTER).bounding_box()
     h = WALL_CUT_BACK_Z
     y_ff = bb.min.Y - 20
-    z_ff = B.tilt_z(y_ff, y_front) - L.Z_OFFSET
+    z_ff = edge_z(y_ff)
     return path_face([
         ((y_ff, z_ff), None),
         ((y_land, z_land), None),
