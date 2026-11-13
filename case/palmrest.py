@@ -1,7 +1,7 @@
 # パームレスト（左手）。キーボードの手前に置く、断面を左右へ押し出した形（「波」の案）。
 # - 座標は机の座標: キーボード（ゴム足込み）を机に置いた状態で、z = 0 が机の面。x と y はプレート DXF と同じ向き
 #   （y は奥が正）で、キーボードの底面を水平に置くための傾き（bottom.TILT_ANGLE、x 軸まわり）だけ回した座標
-# - 寸法はケースのコード（../case の layout.py, plate.py, top.py, bottom.py）から読む。ケースを変えるとそろって変わる
+# - 寸法はケースのコード（layout.py, plate.py, top.py, bottom.py）から読む。ケースを変えるとそろって変わる
 # - 天面: 奥は高さ FLAT_Z の水平、途中からトップケースの上面と平行（6.25°）に手前へ下がる。手前は垂直に切る
 # - 平面形: 左はトップケースの左の外面にそろえる。右はトップケースの右下の斜めの辺（の天面の稜線）を延長した直線で切る。
 #   手前の辺は、トップケースの奥の円弧（外面）と同じ半径で向きを反対にした円弧
@@ -11,13 +11,11 @@
 #   面取り（奥の縦の稜線は、奥の面と鋭い角度で交わるので除く）
 # - 印刷: 左の端の面を下にして立てて刷る。天面の曲がり（水平から傾斜への折れ目）と手前の丸めが壁になるので、積層の段差が
 #   天面に出ない。A1 はベッドが前後に動くので、断面の長い向き（奥行き）を前後にそろえる。ブリムを付ける
-# - 実行: uv run --project ../case python palmrest.py [--show]   （out/ に STEP / STL / 3MF を書き出す。向きは置いた状態で、
+# - 実行: uv run python palmrest.py [--show]   （out/ に STEP / STL / 3MF を書き出す。向きは置いた状態で、
 #   底面が z = 0。--show で OCP CAD Viewer にキーボードと並べて表示）
 import math
 import sys
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "case"))
 
 from build123d import (
     Align, Axis, Circle, GeomType, Line, Mesher, Plane, Polygon, Pos, Rectangle, Rot, ThreePointArc, Vector, chamfer,
