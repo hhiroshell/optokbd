@@ -83,7 +83,7 @@ def bevel_face(case):
 
 
 def build():
-    outer = L.face(L.BOTTOM_OUTER)
+    outer = L.face(L.BOTTOM_SIDE)
     screws = L.screws()
 
     # 床より下はボスなし（ボスはネジ頭の穴と同じ円なので空になる）、床より上はボスつきの外形
@@ -102,7 +102,7 @@ def build():
             case += inside & (Pos(s.pos.X, s.pos.Y, FLOOR_Z - 0.1) * Solid.make_cylinder(BACK_BOSS_R, BACK_BOSS_TOP - FLOOR_Z + 0.1))
 
     # 底面の傾斜。YZ 平面に描いて x 方向に貫通させる
-    y_front = outer.bounding_box().min.Y
+    y_front = L.face(L.BOTTOM_OUTER).bounding_box().min.Y   # 傾斜の基準は BOTTOM_OUTER（BOTTOM_SIDE ではない）
     y_zero = y_front + TILT_FRONT_Z / TILT_SLOPE
     y_far = y_front - 20
     wedge = Plane.YZ * Polyline(
@@ -133,10 +133,10 @@ def build():
     case = case.chamfer(BED_CHAMFER, None, bottom.outer_wire().edges())
 
     # 面取りと左右の側面の境目、手前の角の縦の稜線を R1
-    left, right = P.LEFT[1][0], P.RIGHT[1][0]
+    left, right = P.LEFT[1][0] - L.BOTTOM_SIDE["side"], P.RIGHT[1][0] + L.BOTTOM_SIDE["side"]
     cone = bevel_face(case)
     sides = [e for e in cone.edges() if min(abs(e.center().X - left), abs(e.center().X - right)) < 1e-6]
-    front_corners = [p for p in plan_corners(P.PLAN, L.BOTTOM_OUTER) if p.Y < -30]
+    front_corners = [p for p in plan_corners(P.PLAN, L.BOTTOM_SIDE) if p.Y < -30]
     corners = case.edges().filter_by(Axis.Z).filter_by(
         lambda e: any((Vector(e.center().X, e.center().Y) - p).length < 1e-6 for p in front_corners)
     )

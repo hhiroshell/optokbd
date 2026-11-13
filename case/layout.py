@@ -10,15 +10,24 @@ from outline import intersect, outward_normal, plan_face, shifted
 # ---- プレートからのオフセット ----
 PLATE_GAP = 0.7       # プレートの外周とケースの内面（トップケースの内側、ボトムケースの壁の内側）のすき間
 BOTTOM_WALL = 2.8     # ボトムケースの奥と手前の壁。左右と斜めの辺には壁がなく、外形はプレートの辺と同じ位置
-TOP_FIT = 0.5         # トップケースの外壁の内面と、ボトムケースの外形のすき間（奥と手前。左右は PLATE_GAP）
-TOP_WALL = 2.0        # トップケースの外壁の厚さ
+TOP_FIT = 0.25        # トップケースの外壁の内面と、ボトムケースの外形のすき間。合わせ目を細く見せるため 0.5（奥と手前）、
+                      # 0.7（左右）から詰めた（タブのポケットの横のすき間 TAB_SLOT_CLEARANCE で、0.2 ではきつかったのに合わせる）
+TOP_SIDE_GAP = 0.6    # 左右と右下の斜めの辺: プレートの外周とトップケースの外壁の内面のすき間。外へ出たマトリクス基板
+                      # （matrix_mock.MATRIX_SIDE_GROW 0.3）と 0.3、プレートのフォーム（foam.PLATE_FOAM_GROW 0.4）と 0.2 残る所まで、
+                      # PLATE_GAP から詰めた（どちらも上からかぶせるときに内面のそばを通る）
+TOP_WALL = 2.0        # トップケースの外壁の厚さ（左右。内面を PLATE_GAP から TOP_SIDE_GAP に詰める前の）
 Z_OFFSET = 6.5        # ボトムケースの z = トップケースの z + Z_OFFSET（ボトムケースの下げた壁の上端がトップケースの段差に当たる）
 
-BOTTOM_OUTER = {"edge": PLATE_GAP + BOTTOM_WALL, "side": 0.0}           # ボトムケースの外形
+BOTTOM_OUTER = {"edge": PLATE_GAP + BOTTOM_WALL, "side": 0.0}           # ボトムケースの外形の基準（底面の傾斜や収納部の位置を決める）
+# ボトムケースの実際の外形: 左右と右下の斜めの辺は、トップケースの外壁の内面（TOP_SIDE_GAP）から TOP_FIT 内側まで外へ出す。
+# 外へ出るのは床より下の側面だけ（床より上の左右には壁がない）。トップケースの内面は高さによらず TOP_SIDE_GAP なので、
+# かぶせるときに外へ出たマトリクス基板とプレートのフォームが通る
+BOTTOM_SIDE = {"edge": BOTTOM_OUTER["edge"], "side": TOP_SIDE_GAP - TOP_FIT}
 BOTTOM_FLOOR = {"edge": PLATE_GAP, "side": 1.0}                         # ボトムケースの床（左右は外形より外まで）
-TOP_CAVITY = {"edge": PLATE_GAP, "side": PLATE_GAP}                     # トップケースの内側（ボトムケースの床の上の空間）
-TOP_INNER = {"edge": BOTTOM_OUTER["edge"] + TOP_FIT, "side": PLATE_GAP}  # トップケースの外壁の内面（下側）
-TOP_OUTER = {"edge": TOP_INNER["edge"] + TOP_WALL, "side": PLATE_GAP + TOP_WALL}  # トップケースの外形
+TOP_CAVITY = {"edge": PLATE_GAP, "side": TOP_SIDE_GAP}                     # トップケースの内側（ボトムケースの床の上の空間）
+TOP_INNER = {"edge": BOTTOM_OUTER["edge"] + TOP_FIT, "side": TOP_SIDE_GAP}  # トップケースの外壁の内面（下側）
+# トップケースの外形。すき間を詰める前（奥と手前の TOP_FIT 0.5、左右の PLATE_GAP）の位置のまま、壁を内側へ厚くした
+TOP_OUTER = {"edge": BOTTOM_OUTER["edge"] + 0.5 + TOP_WALL, "side": PLATE_GAP + TOP_WALL}
 
 
 def face(grow):

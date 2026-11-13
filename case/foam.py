@@ -57,8 +57,9 @@ MIN_WEB = 0.4                  # 残るフォームのうち、幅 2 × MIN_WEB 
 MAX_SCRAP = 100.0              # 捨てる切れ端（いちばん大きな 1 枚以外。カットしないのでシートの残りの側に残る）の面積の上限 [mm^2]
 PLATE_HOLE = 14.0              # プレートのフォームのスイッチの穴（プレートと同じ）
 PLATE_FOAM_GROW = 0.4          # プレートのフォームの外形: プレートの外形（タブを除く）から外へ
-# プレートのフォームの外形が、壁の内面、ネジのボス（どちらもプレートから L.PLATE_GAP 外）、ガスケットから 0.2 mm 以上離れること
-assert PLATE_FOAM_GROW + 0.2 <= L.PLATE_GAP and L.SCREW_FROM_PLATE - L.BOSS_R >= L.PLATE_GAP
+# プレートのフォームの外形が、壁の内面（プレートから L.PLATE_GAP 外、左右は L.TOP_SIDE_GAP 外）、ネジのボス（L.PLATE_GAP 外）、
+# ガスケットから 0.2 mm 以上離れること
+assert PLATE_FOAM_GROW + 0.2 <= min(L.PLATE_GAP, L.TOP_SIDE_GAP) + 1e-9 and L.SCREW_FROM_PLATE - L.BOSS_R >= L.PLATE_GAP
 
 BOARDS = {"l": ("matrix-left", (50.0, 50.0), 1), "r": ("matrix-right", (185.0, 50.0), -1)}   # (基板, 原点, x の向き)
 
