@@ -8,8 +8,8 @@ import sys
 from pathlib import Path
 
 from build123d import (
-    Axis, Circle, Face, Kind, Mesher, Plane, Polyline, Pos, Rectangle, RectangleRounded, Rot, Solid, Vector,
-    Wire, export_step, export_stl, extrude, offset, revolve,
+    Axis, Circle, Face, Kind, Plane, Polyline, Pos, Rectangle, RectangleRounded, Rot, Solid, Vector, Wire, extrude, offset,
+    revolve,
 )
 
 import bottom as B
@@ -270,11 +270,7 @@ if __name__ == "__main__":
     case = build()
     out = Path(__file__).parent / "out" / "print"
     out.mkdir(parents=True, exist_ok=True)
-    export_step(case, out / "top-l.step")
-    export_stl(case, out / "top-l.stl", L.MESH_LINEAR, L.MESH_ANGULAR)
-    mesher = Mesher()  # 3D プリンタのスライサー用。単位は mm
-    mesher.add_shape(case, L.MESH_LINEAR, L.MESH_ANGULAR)
-    mesher.write(out / "top-l.3mf")
+    L.export_hands("top", case, out)
     print(f"volume = {case.volume:.2f} mm^3")
     if "--show" in sys.argv:
         from ocp_vscode import show

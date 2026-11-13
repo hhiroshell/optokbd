@@ -8,8 +8,8 @@ from pathlib import Path
 
 from OCP.Standard import Standard_ConstructionError
 from build123d import (
-    Align, Axis, Box, Circle, Face, GeomType, Line, Mesher, Plane, Polyline, Pos, Rectangle, Rot, Solid, ThreePointArc, Vector,
-    Vertex, Wire, export_step, export_stl, extrude, revolve,
+    Align, Axis, Box, Circle, Face, GeomType, Line, Plane, Polyline, Pos, Rectangle, Rot, Solid, ThreePointArc, Vector,
+    Vertex, Wire, extrude, revolve,
 )
 
 import layout as L
@@ -249,11 +249,7 @@ if __name__ == "__main__":
     case = build()
     out = Path(__file__).parent / "out" / "print"
     out.mkdir(parents=True, exist_ok=True)
-    export_step(case, out / "bottom-l.step")
-    export_stl(case, out / "bottom-l.stl", L.MESH_LINEAR, L.MESH_ANGULAR)
-    mesher = Mesher()  # 3D プリンタのスライサー用。単位は mm
-    mesher.add_shape(case, L.MESH_LINEAR, L.MESH_ANGULAR)
-    mesher.write(out / "bottom-l.3mf")
+    L.export_hands("bottom", case, out)
     print(f"volume = {case.volume:.2f} mm^3, foot edge clearance = {check_feet(case):.2f} mm")
     # 0.5 mm 刻みで探した位置なので、少しの差は許す。底面の縁の面取りの分だけ、平らな所の縁は内へ入る
     assert check_feet(case) >= FOOT_EDGE_CLEAR - 0.3 - BED_CHAMFER

@@ -25,6 +25,7 @@ from pathlib import Path
 from build123d import Box, Plane, Pos, RectangleRounded, SlotOverall, Solid, extrude
 
 import bay
+import layout as L
 
 KICAD_PCB = Path(__file__).resolve().parent.parent / "pcbs" / "controller" / "controller.kicad_pcb"
 
@@ -229,8 +230,8 @@ if __name__ == "__main__":
     assert res["flip: USB support to battery holes"] >= 0.5
     out = Path(__file__).parent / "out" / "print"
     out.mkdir(parents=True, exist_ok=True)
-    bay.export([("solder-jig-top", top)], out / "solder-jig-top")
-    bay.export([("solder-jig-flip", flip)], out / "solder-jig-flip")
+    L.export([("solder-jig-top", top)], out / "solder-jig-top")
+    L.export([("solder-jig-flip", flip)], out / "solder-jig-flip")
     print(f"top volume = {top.volume:.2f} mm^3, solids = {len(top.solids())}, valid = {top.is_valid}")
     print(f"flip volume = {flip.volume:.2f} mm^3, solids = {len(flip.solids())}, valid = {flip.is_valid}")
     if "--show" in sys.argv:

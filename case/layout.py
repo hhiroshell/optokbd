@@ -2,7 +2,7 @@
 # - 「edge」はプレートの奥と手前の辺、「side」は左右と右下の斜めの辺（plate.PLAN の辺の種類）
 from dataclasses import dataclass
 
-from build123d import Pos, Rectangle, Vector
+from build123d import Compound, Mesher, Plane, Pos, Rectangle, Vector, export_step, export_stl, mirror
 
 import plate as P
 from outline import intersect, outward_normal, plan_face, shifted
@@ -40,6 +40,33 @@ def face(grow):
 MESH_LINEAR = 0.0001    # メッシュの細かさ。線の許容差は辺の大きさに対する比（130 mm の辺で 0.013 mm）、
 MESH_ANGULAR = 0.02     # 角度は隣り合う三角形の向きの差（rad、約 1.1°）。build123d の既定（0.001, 0.1）では、フィレットや
                         # 大きな円弧が 5.7° ごとの平らな面になる
+
+
+def export(shape_or_parts, path):
+    """STEP / STL / 3MF に書き出す。部品のリスト [(名前, 形)] なら、3MF では部品ごとに名前をつける。"""
+    parts = shape_or_parts if isinstance(shape_or_parts, list) else [("part", shape_or_parts)]
+    export_step(Compound([s for _, s in parts]), path.with_suffix(".step"))
+    export_stl(Compound([s for _, s in parts]), path.with_suffix(".stl"), MESH_LINEAR, MESH_ANGULAR)
+    m = Mesher()  # 3D プリンタのスライサー用。単位は mm
+    for name, s in parts:
+        m.add_shape(s, MESH_LINEAR, MESH_ANGULAR, part_number=name)
+    m.write(path.with_suffix(".3mf"))
+
+
+# ---- 右手 ----
+# 右手のケースは、左手のケースを左右に反転した形。プレートは同じ板を裏返して使い、右手のマトリクス基板はキー・J1・外形が
+# 左手の鏡像の配置になっている。コントローラー基板は左右対称で共通。反転の面はケースの左右の中央（奥と手前の辺の中央のネジの x）
+MIRROR_X = (P.LEFT[1][0] + P.RIGHT[1][0]) / 2
+
+
+def right_hand(shape):
+    return mirror(shape, Plane.YZ.offset(MIRROR_X))
+
+
+def export_hands(name, shape, out):
+    """左手の形を out/<name>-l.*、左右に反転した右手の形を out/<name>-r.* に書き出す。"""
+    export([(f"{name}-l", shape)], out / f"{name}-l")
+    export([(f"{name}-r", right_hand(shape))], out / f"{name}-r")
 
 
 # ---- ネジ（M2）----

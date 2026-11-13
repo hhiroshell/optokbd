@@ -18,8 +18,8 @@ import sys
 from pathlib import Path
 
 from build123d import (
-    Align, Axis, Circle, GeomType, Line, Mesher, Plane, Polygon, Pos, Rectangle, Rot, ThreePointArc, Vector, chamfer,
-    export_step, export_stl, extrude, fillet, make_face,
+    Align, Axis, Circle, GeomType, Line, Plane, Polygon, Pos, Rectangle, Rot, ThreePointArc, Vector, chamfer, extrude, fillet,
+    make_face,
 )
 
 import bottom as B
@@ -158,11 +158,7 @@ if __name__ == "__main__":
     out = Path(__file__).parent / "out" / "print"
     out.mkdir(parents=True, exist_ok=True)
     placed = Pos(0, 0, -bb.min.Z) * part
-    export_step(placed, out / "palmrest-l.step")
-    export_stl(placed, out / "palmrest-l.stl", L.MESH_LINEAR, L.MESH_ANGULAR)
-    mesher = Mesher()  # 3D プリンタのスライサー用。単位は mm
-    mesher.add_shape(placed, L.MESH_LINEAR, L.MESH_ANGULAR, part_number="palmrest-l")
-    mesher.write(out / "palmrest-l.3mf")
+    L.export_hands("palmrest", placed, out)
     print(f"size = {bb.size.X:.1f} x {bb.size.Y:.1f} x {bb.size.Z:.1f} mm (top {bb.max.Z:.2f} from the desk), "
           f"volume = {part.volume:.2f} mm^3, solids = {len(part.solids())}, gap = {gap:.2f}, "
           f"slope starts at y = {slope_start():.1f}")

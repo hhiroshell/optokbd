@@ -24,9 +24,8 @@ import sys
 from pathlib import Path
 
 from build123d import (
-    Align, Box, Circle, Compound, Face, GeomType, Line, Mesher, Plane, Polygon, Polyline, Pos, Rectangle, RectangleRounded, SlotOverall, Solid,
-    ThreePointArc, Wire,
-    export_step, export_stl, extrude, fillet, loft, mirror, offset,
+    Align, Box, Circle, Face, GeomType, Line, Plane, Polygon, Polyline, Pos, Rectangle, RectangleRounded, SlotOverall, Solid,
+    ThreePointArc, Wire, extrude, fillet, loft, mirror, offset,
 )
 
 import bottom as B
@@ -1110,25 +1109,15 @@ def export_board_dxf(path, hole_d=BOARD_HOLE_D):
     doc.saveas(path)
 
 
-def export(shape_or_parts, path):
-    parts = shape_or_parts if isinstance(shape_or_parts, list) else [("part", shape_or_parts)]
-    export_step(Compound([s for _, s in parts]), path.with_suffix(".step"))
-    export_stl(Compound([s for _, s in parts]), path.with_suffix(".stl"), L.MESH_LINEAR, L.MESH_ANGULAR)
-    m = Mesher()  # 3D プリンタのスライサー用。単位は mm
-    for name, s in parts:
-        m.add_shape(s, L.MESH_LINEAR, L.MESH_ANGULAR, part_number=name)
-    m.write(path.with_suffix(".3mf"))
-
-
 if __name__ == "__main__":
     lid_part = lid()
     out = Path(__file__).parent / "out" / "print"
     order = Path(__file__).parent / "out" / "order"
     out.mkdir(parents=True, exist_ok=True)
     order.mkdir(parents=True, exist_ok=True)
-    export(lid_part, out / "lid-l")
+    L.export_hands("lid", lid_part, out)
     ceiling_part = ceiling()
-    export([("bay-ceiling", ceiling_print(ceiling_part))], out / "bay-ceiling-l")
+    L.export_hands("bay-ceiling", ceiling_print(ceiling_part), out)
     export_board_dxf(order / "controller-board-l.dxf")
     # KiCad の Edge.Cuts に入れる外形（scripts/set_edge_cuts.py で読む）
     (order / "controller-board-outline.json").write_text(json.dumps(board_outline_segments()))
