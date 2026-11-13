@@ -764,6 +764,10 @@ def ceiling():
         notch = corner_footprint(x, v, sx, sv, SCREW_BOSS_D / 2 + CEILING_FIT, CEILING_LEDGE + 2.0)
         part -= FRAME * Pos(0, 0, -50) * extrude(notch, 100)
     part -= usb_ledge_keep(CEILING_FIT)
+    # J1 のケーブルの溝の手前の広い所（収納部の手前の壁より手前、幅 J1_POCKET_W）の上には天井を作らない。受けの帯は溝で
+    # 切れているので、天井の開口（右の端は収納部の中の溝の幅 J1_GROOVE_W）より右の帯が、溝の上に浮いて張り出す
+    vf = v_of(LID_FRONT_Y) - LID_GAP
+    part -= local_box(BOARD_CX - J1_POCKET_W / 2, BOARD_CX + J1_POCKET_W / 2, vf - J1_GROOVE_DEPTH, vf, -30, 30)
     return part
 
 
