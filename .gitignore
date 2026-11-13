@@ -1,21 +1,21 @@
-# KiCAD internal files
+# KiCad の作業ファイル
 *-backups/
 *.lck
 fp-info-cache
 *_cache.lib
 _autosave-*
 *.rpt
-
-# FreeCAD/CAD autosave and lock files
-*.FCBak
 \#*
 
-# Exported 3D model files (generated from .FCStd sources)
-*.step
-*.3mf
-
-# JLC PCB plugin / ordering outputs
+# JLCPCB のプラグインが書き出す発注データ
 jlcpcb/
 
-# Editor backup files
+# case/ の Python 環境と、スクリプトが書き出すファイル（./build.sh で作り直せる）
+.venv/
+__pycache__/
+out/
+# 遊舎工房のフォームのテンプレート（リポジトリには入れない。入手先は case/foam.py の先頭）
+vendor/
+
+# エディタのバックアップ
 *~
