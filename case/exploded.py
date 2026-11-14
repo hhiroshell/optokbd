@@ -57,7 +57,8 @@ def layers():
     z = L.Z_OFFSET
     return [
         ("Lid, controller PCB (XIAO nRF52840) and battery", Compound([bay.lid(), board, xiao, usb, battery]), 0, "right"),
-        ("Bottom case (3D-printed PLA) with the bay ceiling", Compound([B.build(), bay.ceiling()]), 60, "left"),
+        ("Bottom case (3D-printed PLA) with the bay ceiling", Compound([B.build(), bay.ceiling(), bay.weight_lids()]), 60,
+         "left"),
         ("Floor foam (PORON 2 mm)", Pos(0, 0, B.FLOOR_Z) * extrude(F.to_face(floor), F.FLOOR_FOAM_T), 45, "right"),
         ("Matrix PCB with hot-swap sockets", Pos(0, 0, M.PCB_TOP_Z) * matrix, 25, "left"),
         ("Plate foam (PORON 3 mm)", Pos(0, 0, M.PCB_TOP_Z) * extrude(F.to_face(F.plate_foam()), F.PLATE_FOAM_T), 25,
