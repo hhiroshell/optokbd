@@ -101,7 +101,8 @@ def bevel_face(case):
                key=lambda f: f.area)
 
 
-def build():
+def build(weights=True):
+    """weights=False で重りの穴を削らない（check_weights で使う）。"""
     outer = L.face(L.BOTTOM_SIDE)
     screws = L.screws()
 
@@ -193,6 +194,10 @@ def build():
     for cut in bay.case_cuts():
         case -= cut
     case = bay.add_screw_bosses(case)
+    # 重りの穴（ボスのうち、天井の受けの段を埋めた部分も削る）
+    if weights:
+        for cut in bay.weight_pockets():
+            case -= cut
 
     # USB-C のケーブルのくぼみの口の縁（くぼみの側面と奥の面取りの斜面の境目）を PLUG_RECESS_CHAMFER の面取り。くぼみの側面は
     # FRAME の奥向き（v）に平行
@@ -245,6 +250,25 @@ def check_feet(case):
     return min(Vertex(x, v, 0).distance_to(w) for x, v in FOOT_POS for w in wires) - FOOT_D / 2
 
 
+def check_weights():
+    """重りの穴のまわりに、bay.WEIGHT_SKIN の肉が残らない所の体積（0 なら残る）。穴を削る前のケースに対して、
+    重りの入る所（天井の下面の高さまで）は全方向に、その上の床の上面までの柱は外面の側（収納部と反対の x と、v）に
+    WEIGHT_SKIN 広げた形がはみ出す体積を測る。収納部の側の天井の下面より上は、天井の受けとつなげるので測らない（つなぐ
+    帯は穴に 0.5 重ねて削るので、柱は収納部の側を 0.6 縮めて測る）。"""
+    import bay
+    case = build(weights=False)
+    s = bay.WEIGHT_SKIN
+    below = bay.below_floor_top()
+    out = 0.0
+    for sx in (-1, 1):
+        x0, x1, v0, v1 = bay.weight_pocket_rect(sx)
+        grown = bay.local_box(x0 - s, x1 + s, v0 - s, v1 + s, bay.WEIGHT_W0 - s, bay.CEILING_W) & below
+        xa, xb = (x0 - s, x1 - 0.6) if sx < 0 else (x0 + 0.6, x1 + s)
+        grown += bay.local_box(xa, xb, v0 - s, v1 + s, bay.WEIGHT_W0, 50) & below
+        out += (grown - case).volume
+    return out
+
+
 if __name__ == "__main__":
     case = build()
     out = Path(__file__).parent / "out" / "print"
@@ -253,6 +277,9 @@ if __name__ == "__main__":
     print(f"volume = {case.volume:.2f} mm^3, foot edge clearance = {check_feet(case):.2f} mm")
     # 0.5 mm 刻みで探した位置なので、少しの差は許す。底面の縁の面取りの分だけ、平らな所の縁は内へ入る
     assert check_feet(case) >= FOOT_EDGE_CLEAR - 0.3 - BED_CHAMFER
+    weight_skin = check_weights()
+    print(f"weight pocket: volume short of skin = {weight_skin:.3f} mm^3")
+    assert weight_skin < 0.05   # 底蓋のボスの下面の面取りの縁に、もとから 0.02 mm^3 ほど掛かる
     if "--show" in sys.argv:
         from ocp_vscode import show
         show(case)
