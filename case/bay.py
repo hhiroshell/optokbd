@@ -448,12 +448,13 @@ def corner_footprint(x, v, sx, sv, r, reach=0.0):
 def contact_chamfer(x, v, sx, sv, w, c, up):
     """ボスの下面（up=True: w から上へ）または底蓋の厚肉の上面（up=False: w から下へ）の縁を c の 45° で落とす、削る形
     （FRAME の座標）。落とすのは、壁（底蓋の外周）につながらない側の縁だけ: 平面形を壁の側へ延ばしてから c だけ内側へ
-    ずらした形から、45° で広がる立体を、元の平面形の柱から引く（壁の側は延ばした分だけ外にあるので削らない）。"""
+    ずらした形から、45° で広がる立体を、元の平面形の柱から引く（壁の側は延ばした分だけ外にあるので削らない）。平面形は
+    壁の中まで入り込んでいるので、壁の中の側面の縁を削らないように、底蓋とのすき間の範囲（収納部の中）に限る。"""
     r = SCREW_BOSS_D / 2
     full = extrude(corner_footprint(x, v, sx, sv, r), c)
     keep = extrude(offset(corner_footprint(x, v, sx, sv, r, reach=2 * c), -c), c, taper=-45)
     tool = full - keep
-    return FRAME * Pos(0, 0, w) * (tool if up else mirror(tool, Plane.XY))
+    return (FRAME * Pos(0, 0, w) * (tool if up else mirror(tool, Plane.XY))) & lid_region(LID_GAP)
 
 
 def boss_flare(x, v, sx, sv, clear):
