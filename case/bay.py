@@ -24,8 +24,8 @@ import sys
 from pathlib import Path
 
 from build123d import (
-    Align, Box, Circle, Face, GeomType, Line, Plane, Polygon, Polyline, Pos, Rectangle, RectangleRounded, SlotOverall, Solid,
-    ThreePointArc, Wire, extrude, fillet, loft, mirror, offset,
+    Align, Box, Circle, Compound, Face, GeomType, Line, Plane, Polygon, Polyline, Pos, Rectangle, RectangleRounded,
+    SlotOverall, Solid, ThreePointArc, Wire, extrude, fillet, loft, mirror, offset,
 )
 
 import bottom as B
@@ -197,6 +197,24 @@ RIB_CHAMFER = 0.3             # リブの上端の角の面取り
 RIB_BOARD_CLEAR = 0.5         # 低くする範囲: 基板の左右の端から外へ
 RIB_LOW_W = LID_T + STANDOFF - 0.1  # 低くする所の上端（底蓋の外面から。基板の下面の 0.1 下）
 RIB_BOSS_CLEAR = 0.3          # リブと電池の枠の斜面の下端と、ボトムケースのボスのすき間
+
+# 重り: 収納部の左右の、底面と床の上面の間に、車のホイール用の貼り付け型の鉄のバランスウエイト（1 個 5 g）を 2 × 2 個ずつ
+# 埋める（片側 20 g、片手 40 g）。重りは底蓋に平行に置き、11 mm の辺を x、19 mm の辺を v に向ける。
+# 重りの穴は底面に平行な直方体で、上は床の上面まで抜いて、上から重りを入れる（ボトムケースは底面を下にして刷るので、
+# 天井を作ると印刷の向きで水平な広いブリッジになる）。穴の上は別の部品の蓋（weight_lid()）でふさいで接着する。蓋は
+# 収納部の天井と同じく、ボトムケースの受けの段に載せる: 重りの上（WEIGHT_CLEAR_T 上）の高さで、穴を奥と手前へ
+# WEIGHT_LEDGE 広げる。左右には受けを作らない（左の穴の外は側面まで約 2 mm しかなく、収納部の側は天井の受けに接する）。
+# 穴は外の壁を厚くするために収納部の側へ寄せ、天井の受けの段の縁まで広げる: 天井の下面より上では、蓋の入る所と天井の受けの
+# 段がつながる。天井の下面より下は、受けの段の下（幅 CEILING_LEDGE）が穴と収納部の間の壁になる。蓋は下面が底蓋に平行、
+# 上面が床の上面と同じ高さ。4 つの穴（左右の手の、収納部の左右）は平面形と高さが同じなので、蓋は 1 種類
+WEIGHT = (11.0, 19.0, 4.0)    # 重り 1 個の x、v、厚さ（貼り付けのテープ込み）。公称値（要実測）
+WEIGHT_GRID = (2, 2)          # 重りの個数（x、v）
+WEIGHT_FIT = 0.1              # 重りと穴の横のすき間（片側）。左の穴の幅で決まる（外の側面と天井の受けの間が 24.2 しかない）
+WEIGHT_CLEAR_T = 0.3          # 重りの上と蓋の下面のすき間
+WEIGHT_W0 = 1.4               # 穴の底: 底蓋の外面（底面）から。奥のゴム足の目印の溝の下に 1.0 残す
+WEIGHT_V_BACK = -9.5          # 重りの入る所の奥の端（FRAME の v）。奥の面取りの斜面から 1 mm 以上離れる
+WEIGHT_LEDGE = 1.0            # 蓋の受けの幅（奥と手前）
+WEIGHT_SKIN = 1.0             # 穴のまわり（外面、底面、床の上面、収納部）に残す肉の下限（bottom.py で確かめる）
 
 # 四隅のネジ: 底蓋の各辺から LID_SCREW_INSET 内側。ボトムケースのボスは床の上面の高さから底蓋の内面まで下ろし、
 # 隣り合う 2 つの壁につなげる。ボスの下面が底蓋の内面に当たる位置で、底蓋が底面と面一になる（4 か所とも）。
@@ -429,12 +447,13 @@ def corner_footprint(x, v, sx, sv, r, reach=0.0):
 def contact_chamfer(x, v, sx, sv, w, c, up):
     """ボスの下面（up=True: w から上へ）または底蓋の厚肉の上面（up=False: w から下へ）の縁を c の 45° で落とす、削る形
     （FRAME の座標）。落とすのは、壁（底蓋の外周）につながらない側の縁だけ: 平面形を壁の側へ延ばしてから c だけ内側へ
-    ずらした形から、45° で広がる立体を、元の平面形の柱から引く（壁の側は延ばした分だけ外にあるので削らない）。"""
+    ずらした形から、45° で広がる立体を、元の平面形の柱から引く（壁の側は延ばした分だけ外にあるので削らない）。平面形は
+    壁の中まで入り込んでいるので、壁の中の側面の縁を削らないように、底蓋とのすき間の範囲（収納部の中）に限る。"""
     r = SCREW_BOSS_D / 2
     full = extrude(corner_footprint(x, v, sx, sv, r), c)
     keep = extrude(offset(corner_footprint(x, v, sx, sv, r, reach=2 * c), -c), c, taper=-45)
     tool = full - keep
-    return FRAME * Pos(0, 0, w) * (tool if up else mirror(tool, Plane.XY))
+    return (FRAME * Pos(0, 0, w) * (tool if up else mirror(tool, Plane.XY))) & lid_region(LID_GAP)
 
 
 def boss_flare(x, v, sx, sv, clear):
@@ -766,6 +785,79 @@ def ceiling():
     vf = v_of(LID_FRONT_Y) - LID_GAP
     part -= local_box(BOARD_CX - J1_POCKET_W / 2, BOARD_CX + J1_POCKET_W / 2, vf - J1_GROOVE_DEPTH, vf, -30, 30)
     return part
+
+
+def weight_lid_w():
+    """重りの穴の蓋の下面 = 受けの高さ（底蓋の外面から）。"""
+    return WEIGHT_W0 + WEIGHT[2] + WEIGHT_CLEAR_T
+
+
+def weight_pocket_rect(sx):
+    """重りの入る所の平面形（FRAME の x0, x1, v0, v1）。sx = -1 が収納部の左、1 が右。"""
+    wx = WEIGHT_GRID[0] * WEIGHT[0] + 2 * WEIGHT_FIT
+    wv = WEIGHT_GRID[1] * WEIGHT[1] + 2 * WEIGHT_FIT
+    edge = LID_GAP + CEILING_LEDGE   # 底蓋の端から穴の縁まで（天井の受けの段の縁）
+    if sx < 0:
+        x1 = LID_X[0] - edge
+        x0 = x1 - wx
+    else:
+        x0 = LID_X[1] + edge
+        x1 = x0 + wx
+    return x0, x1, WEIGHT_V_BACK - wv, WEIGHT_V_BACK
+
+
+def weight_pockets():
+    """重りの穴: 重りの入る所と、その上の蓋の入る所（奥と手前へ WEIGHT_LEDGE 広げて、床の上面まで抜く）。"""
+    out = []
+    for sx in (-1, 1):
+        x0, x1, v0, v1 = weight_pocket_rect(sx)
+        w = weight_lid_w()
+        pocket = local_box(x0, x1, v0, v1, WEIGHT_W0, w + 0.1)
+        pocket += local_box(x0, x1, v0 - WEIGHT_LEDGE, v1 + WEIGHT_LEDGE, w, 50)
+        out.append(pocket & prism(Rectangle(1000, 1000), -30, B.FLOOR_Z + 1))
+    return out
+
+
+def weight_lid():
+    """重りの穴の蓋（別の部品。左手の収納部の左の穴に組み付けた位置）: 蓋の入る所から CEILING_FIT 内側の範囲を、
+    蓋の下面（底蓋に平行）から床の上面（水平）までの高さにした板。"""
+    x0, x1, v0, v1 = weight_pocket_rect(-1)
+    f, e = CEILING_FIT, WEIGHT_LEDGE
+    return local_box(x0 + f, x1 - f, v0 - e + f, v1 + e - f, weight_lid_w(), 50) & prism(Rectangle(1000, 1000), -30, B.FLOOR_Z)
+
+
+def weight_lid_print(part):
+    """重りの穴の蓋を印刷の向き（下面を z = 0 に置く）にしたもの。"""
+    return Pos(0, 0, -weight_lid_w()) * FRAME.to_local_coords(part)
+
+
+def weight_lid_min_thickness():
+    """蓋のいちばん薄い所（手前の端）の厚さ: 床の上面（水平）と蓋の下面の z の差。"""
+    _, _, v0, _ = weight_pocket_rect(-1)
+    return B.FLOOR_Z - FRAME.from_local_coords((0, v0 - WEIGHT_LEDGE, weight_lid_w())).Z
+
+
+# 蓋のいちばん薄い所に厚さが残ること
+assert weight_lid_min_thickness() >= WEIGHT_SKIN
+
+
+def weights():
+    """プレビュー用: 重り（収納部の左右に 2 × 2 個ずつ）。"""
+    out = []
+    for sx in (-1, 1):
+        x0, _, _, v1 = weight_pocket_rect(sx)
+        for i in range(WEIGHT_GRID[0]):
+            for j in range(WEIGHT_GRID[1]):
+                xa = x0 + WEIGHT_FIT + i * WEIGHT[0]
+                vb = v1 - WEIGHT_FIT - j * WEIGHT[1]
+                out.append(local_box(xa, xa + WEIGHT[0], vb - WEIGHT[1], vb, WEIGHT_W0, WEIGHT_W0 + WEIGHT[2]))
+    return Compound(out)
+
+
+def weight_lids():
+    """プレビュー用: 収納部の左右の重りの穴の蓋（組み付けた位置）。右の穴の蓋は、左の穴の蓋を x にずらしたもの。"""
+    lid = weight_lid()
+    return Compound([lid, Pos(weight_pocket_rect(1)[0] - weight_pocket_rect(-1)[0], 0, 0) * lid])
 
 
 def usb_ledge_keep(grow=0.0):
@@ -1118,14 +1210,19 @@ if __name__ == "__main__":
     L.export_hands("lid", lid_part, out)
     ceiling_part = ceiling()
     L.export_hands("bay-ceiling", ceiling_print(ceiling_part), out)
+    # 重りの穴の蓋は 4 つとも同じ形（左右の手で 2 つずつ刷る）
+    weight_lid_part = weight_lid()
+    L.export(weight_lid_print(weight_lid_part), out / "weight-lid")
     export_board_dxf(order / "controller-board-l.dxf")
     # KiCad の Edge.Cuts に入れる外形（scripts/set_edge_cuts.py で読む）
     (order / "controller-board-outline.json").write_text(json.dumps(board_outline_segments()))
     print(f"lid volume = {lid_part.volume:.2f} mm^3, solids = {len(lid_part.solids())}")
     print(f"ceiling volume = {ceiling_part.volume:.2f} mm^3, solids = {len(ceiling_part.solids())}, "
           f"back screw wall = {back_screw_ledge_gap():.2f}")
+    print(f"weight lid volume = {weight_lid_part.volume:.2f} mm^3, thinnest = {weight_lid_min_thickness():.2f}")
     if "--show" in sys.argv:
         from ocp_vscode import show
         case = B.build()
-        show(case, ceiling_part, lid_part, *dummies(), names=["bottom-l", "ceiling", "lid", "board", "xiao", "usb-c", "battery"],
-             colors=["#5b8fd6", "#d98c5f", "#7f77dd", "#3b6d11", "#1d9e75", "#ba7517", "#888780"])
+        show(case, ceiling_part, weight_lids(), lid_part, *dummies(), weights(),
+             names=["bottom-l", "ceiling", "weight-lids", "lid", "board", "xiao", "usb-c", "battery", "weights"],
+             colors=["#5b8fd6", "#d98c5f", "#e0b04a", "#7f77dd", "#3b6d11", "#1d9e75", "#ba7517", "#888780", "#444441"])

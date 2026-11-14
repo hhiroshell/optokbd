@@ -37,7 +37,8 @@ uv run python exploded.py           # regenerate docs/images/exploded-l.svg
 ```
 
 - `case/out/print/`: parts to print (STEP / STL / 3MF). The cases, the lid, the bay ceiling, and the palm rest are written for
-  the left hand (`-l`) and, mirrored, for the right hand (`-r`).
+  the left hand (`-l`) and, mirrored, for the right hand (`-r`). The weight pocket lid (`weight-lid`) is one part for all four
+  pockets; print four.
 - `case/out/order/`: files to order with (the foam and gasket SVGs for Yushakobo's laser cutting service) and the outlines
   to load into KiCad's Edge.Cuts.
 
