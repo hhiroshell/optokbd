@@ -107,12 +107,13 @@ PLUG_GAP = 2.0                # くぼみの底: USB-C の口から奥へ。ケ�
 
 # J1（基板の手前の端の近く、差し込み口は手前）に挿したプラグとケーブルの溝: 収納部の手前の壁から手前へ掘り込み、
 # 上は床を抜いてボトムケースの内側の空間までつなげる（天井を作らない）。平面形は J1 の中心（基板の中心）に合わせ、
-# 収納部の中は幅 J1_GROOVE_W、手前の壁より手前は幅 J1_POCKET_W に広げる（手前の角を丸める）。50 mm のケーブル（底蓋を
+# 収納部の中は幅 J1_GROOVE_W、手前の壁より手前は左だけ J1_POCKET_LEFT まで広げる（手前の角を丸める。右の壁は収納部の中の
+# 溝と、天井の開口の右の端の線にそろえる）。50 mm のケーブル（底蓋を
 # 外せる長さ）の余りを、手前の広い所に横へ輪にして収める（奥行き 8 では収まらなかった。ケーブルの余りは壁から手前へ
 # 約 16 mm 出る。奥行きを 20 にすると、手前ほど底面が高くなるので溝の手前の端が浅くなった）。手前の面は底蓋に垂直。
 # 底は基板の下面の高さで、それより下は収納部の手前の壁をそのまま残す（底蓋の開口の形は変えない）
 J1_GROOVE_W = 20.0            # 収納部の中の幅（x）。J1（幅約 14）+ 両側 3。手前の右のボスとナットの溝を避ける
-J1_POCKET_W = 27.0            # 手前の壁より手前の幅。左は爪の切り欠き、右は手前の右のボス（壁から 1 mm 手前まで入る）を避ける
+J1_POCKET_LEFT = 13.5         # 手前の壁より手前の広い所の左の端: 基板の中心から左へ。爪の切り欠きを避ける
 J1_GROOVE_DEPTH = 14.0        # 溝の奥行き: 収納部の手前の壁から手前へ
 J1_GROOVE_R = 1.5             # 溝の手前の角の丸め
 # 溝の手前の端の張り出し: ケーブルの余りが浮いて、床のフォームごとマトリクス基板を押し上げないように、溝の手前の面の
@@ -780,10 +781,10 @@ def ceiling():
         notch = corner_footprint(x, v, sx, sv, SCREW_BOSS_D / 2 + CEILING_FIT, CEILING_LEDGE + 2.0)
         part -= FRAME * Pos(0, 0, -50) * extrude(notch, 100)
     part -= usb_ledge_keep(CEILING_FIT)
-    # J1 のケーブルの溝の手前の広い所（収納部の手前の壁より手前、幅 J1_POCKET_W）の上には天井を作らない。受けの帯は溝で
-    # 切れているので、天井の開口（右の端は収納部の中の溝の幅 J1_GROOVE_W）より右の帯が、溝の上に浮いて張り出す
+    # J1 のケーブルの溝の手前の広い所（収納部の手前の壁より手前）の上には天井を作らない。右の端は天井の開口の右の端と
+    # そろっているので、その右の天井は受けの帯に載る
     vf = v_of(LID_FRONT_Y) - LID_GAP
-    part -= local_box(BOARD_CX - J1_POCKET_W / 2, BOARD_CX + J1_POCKET_W / 2, vf - J1_GROOVE_DEPTH, vf, -30, 30)
+    part -= local_box(BOARD_CX - J1_POCKET_LEFT, BOARD_CX + J1_GROOVE_W / 2, vf - J1_GROOVE_DEPTH, vf, -30, 30)
     return part
 
 
@@ -909,7 +910,7 @@ def nail_notch():
 
 
 # 爪の切り欠きが J1 の溝から 1 mm 以上離れていること。底蓋の側の溝が、電池の枠の手前の壁を削らないこと
-assert nail_x() + NAIL_W / 2 <= BOARD_CX - J1_POCKET_W / 2 - 1.0
+assert nail_x() + NAIL_W / 2 <= BOARD_CX - J1_POCKET_LEFT - 1.0
 assert v_of(LID_FRONT_Y) + NAIL_SLOT <= battery_outline(BATTERY_FRAME[2] + BATTERY_FRAME[0]).bounding_box().min.Y
 
 
@@ -917,9 +918,9 @@ def j1_groove():
     """J1 のプラグとケーブルの溝（FRAME の w の向きの柱）。奥は収納部の中まで伸ばして、収納部の手前の壁に重ねる。"""
     vf = v_of(LID_FRONT_Y) - LID_GAP
     v0, v1 = vf - J1_GROOVE_DEPTH, vf + 2 * J1_GROOVE_R
-    a, b = J1_GROOVE_W / 2, J1_POCKET_W / 2
+    a, b = J1_GROOVE_W / 2, J1_POCKET_LEFT
     outline = Polygon(*[(BOARD_CX + x, v) for x, v in
-                        ((-b, v0), (b, v0), (b, vf), (a, vf), (a, v1), (-a, v1), (-a, vf), (-b, vf))], align=None)
+                        ((-b, v0), (a, v0), (a, v1), (-a, v1), (-a, vf), (-b, vf))], align=None)
     # 丸めるのは手前の角と、収納部の中の奥の角だけ。手前の壁の線の上の角（広い所の奥の角と、幅の変わる入隅）は丸めない
     # （広い所の奥の角を丸めると、丸めの外に壁の線に沿って刃のように薄い肉が残る）
     corners = [p for p in outline.vertices() if abs(p.Y - vf) > 1e-6]
@@ -932,16 +933,15 @@ def j1_groove():
     z0 = FRAME.from_local_coords((0, vt, 0)).Z
     wt = (B.FLOOR_Z - z0) / math.cos(A) - J1_LIP_T
     lip = Polygon((v0 - 5, wt - J1_LIP - 5), (vt, wt), (vt, wt + 40), (v0 - 5, wt + 40), align=None)
-    groove -= FRAME * extrude(Plane.YZ * lip, J1_POCKET_W + 10, both=True).moved(Pos(BOARD_CX, 0, 0))
+    groove -= FRAME * extrude(Plane.YZ * lip, 2 * b + 10, both=True).moved(Pos(BOARD_CX, 0, 0))
     # 壁の上の角の斜面（手前の広い所の幅だけ）
     c = J1_RAMP
     ramp = Polygon((vf - c, w0 + 1), (vf - c, w0), (vf, w0 - c), (vf, w0 + 1), align=None)
-    return groove + FRAME * extrude(Plane.YZ * ramp, J1_POCKET_W / 2, both=True).moved(Pos(BOARD_CX, 0, 0))
+    return groove + FRAME * extrude(Plane.YZ * ramp, (a + b) / 2, both=True).moved(Pos(BOARD_CX + (a - b) / 2, 0, 0))
 
 
-# J1 の溝が手前の右のボス（とナットの溝の口）から離れていること。手前の広い所は、ボスが手前の壁へ入り込む所から 1 mm
+# J1 の溝（手前の広い所も右の壁は同じ）が手前の右のボス（とナットの溝の口）から離れていること
 assert BOARD_CX + J1_GROOVE_W / 2 <= LID_X[1] - LID_SCREW_INSET - SCREW_BOSS_D / 2 - 2.0 - 1.0
-assert BOARD_CX + J1_POCKET_W / 2 <= LID_X[1] - LID_SCREW_INSET - SCREW_BOSS_D / 2 - 1.0
 
 
 def boss_solid(x, v, sx, sv):
