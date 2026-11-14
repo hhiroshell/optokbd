@@ -252,7 +252,8 @@ def check_feet(case):
 
 def check_weights():
     """重りの穴のまわりに、bay.WEIGHT_SKIN の肉が残らない所の体積（0 なら残る）。穴を削る前のケースに対して、穴を
-    上以外の向きへ WEIGHT_SKIN 広げた形（床の上面より下）がはみ出す体積を測る。"""
+    上以外の向きへ WEIGHT_SKIN 広げた形（床の上面より下）がはみ出す体積を測る。天井の受けの段の上（穴とつなげる所）は
+    数えない。"""
     import bay
     case = build(weights=False)
     s = bay.WEIGHT_SKIN
@@ -263,6 +264,7 @@ def check_weights():
         grown = bay.local_box(x0 - s, x1 + s, v0 - s, v1 + s, bay.WEIGHT_W0 - s, w + 0.1)
         grown += bay.local_box(x0 - s, x1 + s, v0 - e - s, v1 + e + s, w, 50)
         grown &= bay.prism(Rectangle(1000, 1000), -30, FLOOR_Z)
+        grown -= bay.lid_region(bay.LID_GAP + bay.CEILING_LEDGE) & bay.slab(bay.CEILING_W, 50)
         out += (grown - case).volume
     return out
 
@@ -277,8 +279,7 @@ if __name__ == "__main__":
     assert check_feet(case) >= FOOT_EDGE_CLEAR - 0.3 - BED_CHAMFER
     weight_skin = check_weights()
     print(f"weight pocket: volume short of skin = {weight_skin:.3f} mm^3")
-    # 広げた直方体の角は、穴の角からの実際の距離より遠くまで届く。左の穴の外の奥の下の角が、底面の外周の面取りに
-    # 0.04 mm^3 ほど掛かる（穴の角から面取りの面までは約 1.5）
+    # 広げた直方体の角は、穴の角からの実際の距離より遠くまで届くので、底面の外周の面取りなどに少し掛かるのは許す
     assert weight_skin < 0.05
     if "--show" in sys.argv:
         from ocp_vscode import show
