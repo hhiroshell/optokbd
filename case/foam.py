@@ -157,7 +157,7 @@ def courtyards(pcb, origin):
 
 def socket_poly(x, y, angle):
     """ホットスワップソケットの大まかな外形（matrix_mock と同じ。本体と両端の端子）。"""
-    shape = unary_union([box(*r) for r in M.SOCKET_BODY + M.SOCKET_TABS])
+    shape = unary_union([Polygon(M.SOCKET_BODY)] + [box(*r) for r in M.SOCKET_TABS])
     return affinity.translate(affinity.rotate(shape, angle, origin=(0, 0)), x, y)
 
 
