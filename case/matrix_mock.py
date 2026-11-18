@@ -134,7 +134,7 @@ assert L.TOP_CAVITY["side"] - MATRIX_SIDE_GROW >= 0.3
 
 def board_outline_segments(mirror=False):
     """基板の外形の辺の並び（プレートの座標）: [(始点, 円弧の中点 または None, 終点)]。KiCad の Edge.Cuts に入れる用
-    （scripts/set_edge_cuts.py で読む）。mirror で右手（x を反転。plate/plate_right.dxf と配置スクリプトの MIRROR と同じ）。"""
+    （scripts/set_edge_cuts.py で読む）。mirror で右手（x を反転。配置スクリプトの MIRROR と同じ）。"""
     sx = -1 if mirror else 1
     out = []
     for e in board_outline().outer_wire().edges():
