@@ -11,7 +11,7 @@
 #   当たるのでやめた
 # - 収納部の上は天井でふさぐ。天井の下面は底蓋と平行（底蓋の外面から CEILING_W）で、天井の下の部品とのすき間はどこでも
 #   同じ。床の上面は水平なので、天井は手前ほど薄い。天井には、J1 のケーブルの溝からマトリクス基板の J1 までの範囲と、
-#   USB-C の上に開口を残す（floor_openings）
+#   USB-C の上（XIAO のリセットボタンの上まで広げる）に開口を残す（floor_openings、reset_opening）
 # - 天井は別の部品（ceiling()）にして、ボトムケースに上から載せて接着する。ボトムケースの収納部は床の上面まで抜き、
 #   収納部の壁から CEILING_LEDGE 外までを天井の下面の高さまで削って受けにする。ボトムケースは傾いた底面を下にして
 #   印刷するので、天井をボトムケースと一体にすると印刷の向きで水平な広い張り出しになり、その層で外形がゆがんで奥の
@@ -163,6 +163,13 @@ CEILING_USB_KEEP = 1.5        # 受けを作らない範囲: 天井の USB-C の
 FLOOR_OPEN_MARGIN = 1.0       # 天井の開口: マトリクスの J1 の本体、USB-C から外へ
 FLOOR_OPEN_R = 2.0            # 天井の開口の角の丸め
 J2_H = 4.85                   # J2（PH 横型）の高さ: 基板の上面から（KiCad の 3D モデル）
+# XIAO のリセットボタン（部品面から見て USB-C の左隣）を、天井の上から細い棒で押せるように、天井の部品の USB-C の上の開口の
+# 奥の部分を左右へ広げる（reset_opening）。右手のケースと天井は左手の鏡像だが、基板と XIAO は同じ向きのまま入るので、右手の
+# ボタン（実物でも USB-C の左）は、鏡像の左手の座標では USB-C の右に来る。そのため左右の両方に広げる。外の端は、天井の
+# 部品で受けを作らない範囲を除いた所の端（usb_ledge_keep(CEILING_FIT)）にそろえ、奥の壁の線で開口の縁に段ができないように
+# する。床のフォームの切り抜き（floor_openings）は変えない。押す棒は reset_pin.py
+RESET_AT = (-5.8, -1.8)       # ボタン（押す所）の中心: XIAO の奥の端の中央から（x、v）。Seeed のピン配置図から読んだ値（要実測）
+RESET_OPEN_MARGIN = 1.3       # 広げた開口の手前の端: ボタンの中心から手前へ
 # 電池のケーブルのガイド: 底蓋から立ち上がる低い柱の上に、柱より広い円形の屋根を載せたもの（キノコ形）。ケーブルは屋根の
 # 下に引っ掛け、柱に巻きつけて流す。屋根の下面は柱から縁へ 45° で広がる円すいにして、底蓋を外面を下にして刷るときに
 # サポートなしで刷れるようにする（水平な下面だとサポートが外しにくかった）。ケーブルは電池の右上の角から横（基板の側）へ出て、電池の枠の右の外面に沿って奥から
@@ -704,23 +711,60 @@ def floor_openings():
     import matrix_mock as M
     vt = board_v_top()
 
-    def rounded(x0, x1, y0, y1):
-        rect = Pos((x0 + x1) / 2, (y0 + y1) / 2) * Rectangle(x1 - x0, y1 - y0)
-        return fillet(rect.vertices(), FLOOR_OPEN_R).faces()[0]
-
     j2_left = BOARD_CX + min(x for x, _ in BATTERY_PINS[0]) - 2.5                      # J2 の左端（基板の x -18）
     j2_back = FRAME.from_local_coords((0, vt + BATTERY_PINS[0][0][1] + 1.9, 0)).Y      # J2 の奥の端（基板の y -9.6）
     j1_x0 = M.J1_AT[0] + M.J1_BODY[0] - FLOOR_OPEN_MARGIN
     j1_x1 = M.J1_AT[0] + M.J1_BODY[2] + FLOOR_OPEN_MARGIN
     y_back = max(M.J1_AT[1] + M.J1_BODY[3] + FLOOR_OPEN_MARGIN, j2_back + FLOOR_OPEN_MARGIN)
-    cable = rounded(min(j2_left - FLOOR_OPEN_MARGIN, j1_x0), max(BOARD_CX + J1_GROOVE_W / 2, j1_x1),
-                    LID_FRONT_Y - 5,   # 手前は収納部の手前の壁より先まで（収納部の範囲で切る）
-                    y_back)
+    cable = rounded_rect(min(j2_left - FLOOR_OPEN_MARGIN, j1_x0), max(BOARD_CX + J1_GROOVE_W / 2, j1_x1),
+                         LID_FRONT_Y - 5,   # 手前は収納部の手前の壁より先まで（収納部の範囲で切る）
+                         y_back)
     hw = USB_W / 2 + FLOOR_OPEN_MARGIN
-    usb = rounded(BOARD_CX - hw, BOARD_CX + hw,
-                  y_back - 2 * FLOOR_OPEN_R,      # 手前は 1 つ目の長方形に重ねてつなげる
-                  back_y(BOARD_CX, 0) + 5)        # 奥は奥の壁より先まで
+    usb = rounded_rect(BOARD_CX - hw, BOARD_CX + hw,
+                       y_back - 2 * FLOOR_OPEN_R,      # 手前は 1 つ目の長方形に重ねてつなげる
+                       back_y(BOARD_CX, 0) + 5)        # 奥は奥の壁より先まで
     return [cable, usb]
+
+
+def rounded_rect(x0, x1, y0, y1):
+    """天井の開口の形: 角を FLOOR_OPEN_R で丸めた長方形（平面）。"""
+    rect = Pos((x0 + x1) / 2, (y0 + y1) / 2) * Rectangle(x1 - x0, y1 - y0)
+    return fillet(rect.vertices(), FLOOR_OPEN_R).faces()[0]
+
+
+def reset_points():
+    """XIAO のリセットボタンの中心の平面の位置（ボタンの上面の高さ）: 左手の基板のボタンと、右手の基板のボタン（鏡像の
+    左手の座標で、USB-C の反対側）。"""
+    vt = board_v_top()
+    w = LID_T + STANDOFF + BOARD_T + XIAO_PCB_T + XIAO_EDGE_PARTS
+    out = []
+    for s in (1, -1):
+        p = FRAME.from_local_coords((BOARD_CX + s * RESET_AT[0], vt + RESET_AT[1], w))
+        out.append((p.X, p.Y))
+    return out
+
+
+def reset_opening():
+    """天井の部品の、XIAO のリセットボタンの上の開口（平面形）: USB-C の上の開口の奥の部分を左右へ広げた、角を丸めた
+    長方形。手前はボタンの中心から RESET_OPEN_MARGIN 手前、奥と左右は usb_ledge_keep(CEILING_FIT) の範囲と同じ。"""
+    bb = floor_openings()[1].bounding_box()
+    grow = CEILING_USB_KEEP + CEILING_FIT
+    return rounded_rect(bb.min.X - grow, bb.max.X + grow, reset_points()[0][1] - RESET_OPEN_MARGIN, bb.max.Y)
+
+
+def reset_access_margin():
+    """リセットボタンの中心と、広げた開口の縁（角の丸めを含む）のいちばん近い所の距離。"""
+    bb = reset_opening().bounding_box()
+    out = []
+    for x, y in reset_points():
+        cx = min(max(x, bb.min.X + FLOOR_OPEN_R), bb.max.X - FLOOR_OPEN_R)   # 近い角の丸めの中心（角の外なら辺）
+        cy = max(y, bb.min.Y + FLOOR_OPEN_R)
+        out.append(min(FLOOR_OPEN_R - math.hypot(x - cx, y - cy), x - bb.min.X, bb.max.X - x, y - bb.min.Y))
+    return min(out)
+
+
+# リセットボタンの中心が、広げた開口の縁から 0.9 mm 以上内側にあること（棒の太さと、ボタンの位置の読みのずれ）
+assert reset_access_margin() >= 0.9
 
 
 def ceiling_clearance():
@@ -772,10 +816,11 @@ assert floor_openings()[0].bounding_box().min.X >= battery_outline(BATTERY_FRAME
 
 def ceiling():
     """収納部の天井（別の部品。組み付けた位置）: 受けの縁の壁から CEILING_FIT 内側の範囲を、天井の下面（底蓋に平行）から
-    床の上面（水平）までの高さにした板。天井の開口と、四隅のボス（CEILING_FIT 外まで）を抜く。"""
+    床の上面（水平）までの高さにした板。天井の開口、リセットボタンの上の開口（reset_opening）と、四隅のボス
+    （CEILING_FIT 外まで）を抜く。"""
     part = lid_region(LID_GAP + CEILING_LEDGE - CEILING_FIT) & slab(CEILING_W, 50)
     part &= prism(Rectangle(1000, 1000), -30, B.FLOOR_Z)
-    for face in floor_openings():
+    for face in floor_openings() + [reset_opening()]:
         part -= prism(face, -30, B.FLOOR_Z + 1)
     for x, v, sx, sv in lid_screws_local():
         notch = corner_footprint(x, v, sx, sv, SCREW_BOSS_D / 2 + CEILING_FIT, CEILING_LEDGE + 2.0)
