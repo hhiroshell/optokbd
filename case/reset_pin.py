@@ -23,7 +23,7 @@ import layout as L
 PIN_W = 1.2                   # 軸の断面（正方形）の辺。天井の開口の縁とボタンの中心の間（bay.reset_access_margin()）より細く
 TIP_STOP = 0.3                # 柄が床に当たったときの軸の先: XIAO の基板の上面から上へ
 HANDLE = (35.0, 5.0, 4.0)     # 柄の長さ（x。軸の外の面から外へ）、幅（y。軸の奥の面から手前へ）、高さ（z。床の上面から上へ）
-HANDLE_CHAMFER = 0.5          # 柄の縁の面取り（印刷でベッドに当たる面の縁は除く）
+HANDLE_CHAMFER = 0.5          # 柄の縁の面取り（印刷でベッドに当たる面と、軸の側の端の面の縁は除く）
 
 
 def xiao_top_z():
@@ -44,7 +44,11 @@ def reset_pin(x, y, sx):
     x0 = x - sx * PIN_W / 2   # 柄の軸の側の端（軸の内の面）
     handle = Pos(x0 + sx * (PIN_W + length) / 2, y + PIN_W / 2 - w / 2, B.FLOOR_Z + h / 2) * Box(PIN_W + length, w, h)
     bed = handle.faces().sort_by(Axis.Y)[-1]
-    handle = handle.chamfer(HANDLE_CHAMFER, None, [e for e in handle.edges() if e not in bed.edges()])
+    # 軸の側の端の面は軸の内の面とそろうので、その縁も面取りしない（下の縁を面取りすると、軸の付け根に V 字の溝ができて
+    # 折れやすい）
+    end = handle.faces().sort_by(Axis.X)[0 if sx > 0 else -1]
+    keep = bed.edges() + end.edges()
+    handle = handle.chamfer(HANDLE_CHAMFER, None, [e for e in handle.edges() if e not in keep])
     shaft = Pos(x, y, B.FLOOR_Z - pin_len() / 2 + 0.05) * Box(PIN_W, PIN_W, pin_len() + 0.1)
     return handle + shaft
 
