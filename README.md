@@ -18,7 +18,7 @@ The case is designed in [build123d](https://github.com/gumyr/build123d) and the 
 |---|---|
 | `case/` | 3D models of the case and related parts (build123d, a uv project): top case, bottom case, lid and controller bay, palm rest, and soldering jigs. Also generates the foam and gasket cut files and the PCB and plate outlines |
 | `pcbs/` | KiCad projects: `matrix-left` and `matrix-right` (matrix PCBs), `controller` (controller PCB), `plate` (FR-4 switch plate), `root` (schematic of the whole keyboard) |
-| `plate/` | Switch plate DXFs, the reference for the case outline. `plate_left.dxf` is the one in use |
+| `plate/` | Switch plate DXF (`plate_left.dxf`), the reference for the case outline. The right hand uses the same plate flipped over |
 | `layout/` | Key layout (Keyboard Layout Editor JSON) |
 | `lib/` | KiCad footprint for the XIAO nRF52840 |
 | `scripts/` | KiCad scripts (part placement, outlines, silkscreen, JLCPCB order files) and a script that syncs the Bambu Studio presets |
