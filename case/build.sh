@@ -7,7 +7,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 rm -rf out
-for script in bottom top bay palmrest jig plate matrix_mock foam; do
+for script in bottom top bay reset_pin palmrest jig plate matrix_mock foam; do
     echo "== $script.py"
     uv run python "$script.py"
 done
