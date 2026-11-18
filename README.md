@@ -5,7 +5,7 @@ The case is designed in [build123d](https://github.com/gumyr/build123d) and the 
 
 ![Exploded view of the left half](docs/images/exploded-l.svg)
 
-- The current version is v0.2.0. The left half is assembled and working. The right-hand case is the left one mirrored.
+- The current version is v0.2.0. Both halves are assembled and working. The right-hand case is the left one mirrored.
   Design notes and the parts list are in [docs/v0.2.0.md](docs/v0.2.0.md) (in Japanese).
 - v0.1.0 (a FreeCAD case and wired PCBs) is available at the `v0.1.0` tag.
 - The firmware lives in [hhiroshell/zmk-config](https://github.com/hhiroshell/zmk-config).
