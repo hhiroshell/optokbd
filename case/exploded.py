@@ -48,19 +48,20 @@ def keycaps():
 
 
 def layers():
-    """[(名前, 形, 下の部品との間の高さ, 名前を置く側)]（下から積む順。形は組み付けた位置）。収納部の天井はボトムケースに
-    接着するので、ボトムケースと一緒にする（分けると上のフォームに隠れる）。重りと重りの穴の蓋は、ボトムケースの上に
-    分けて描く。ボトムケースは大きく、底蓋をほとんど隠すので、その下だけ間を広げる。"""
+    """[(名前, 形, 下の部品との間の高さ, 名前を置く側)]（下から積む順。形は組み付けた位置）。重りは、ボトムケースの上に
+    分けて描く。収納部の天井は、重りの穴の蓋とスペーサーと同じく、ボトムケースの受けの段に上から載せて接着する部品なので、
+    それらと同じ高さに一緒に描く。ボトムケースは大きく、底蓋をほとんど隠すので、その下だけ間を広げる。"""
     board, xiao, usb, battery = bay.dummies()
     matrix, _ = M.matrix_mock()
     floor = F.floor_foams(F.case_cuts())["l"][0]
     z = L.Z_OFFSET
     return [
         ("Lid, controller PCB (XIAO nRF52840) and battery", Compound([bay.lid(), board, xiao, usb, battery]), 0, "right"),
-        ("Bottom case (3D-printed PLA) with the bay ceiling", Compound([B.build(), bay.ceiling()]), 60, "left"),
+        ("Bottom case (3D-printed PLA)", B.build(), 60, "left"),
         ("Steel weights (4 x 5 g per pocket, the rearmost stacked)", bay.weights(), 20, "right"),
-        ("Weight pocket lids and spacers (3D-printed PLA)", bay.weight_lids(), 25, "left"),
-        ("Floor foam (PORON 2 mm)", Pos(0, 0, B.FLOOR_Z) * extrude(F.to_face(floor), F.FLOOR_FOAM_T), 60, "right"),
+        ("Bay ceiling, weight pocket lids and spacers (3D-printed PLA)", Compound([bay.ceiling(), bay.weight_lids()]), 25,
+         "left"),
+        ("Floor foam (PORON 2 mm)", Pos(0, 0, B.FLOOR_Z) * extrude(F.to_face(floor), F.FLOOR_FOAM_T), 70, "right"),
         ("Matrix PCB with hot-swap sockets", Pos(0, 0, M.PCB_TOP_Z) * matrix, 25, "left"),
         ("Plate foam (PORON 3 mm)", Pos(0, 0, M.PCB_TOP_Z) * extrude(F.to_face(F.plate_foam()), F.PLATE_FOAM_T), 25,
          "right"),
