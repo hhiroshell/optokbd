@@ -207,22 +207,26 @@ RIB_LOW_W = LID_T + STANDOFF - 0.1  # 低くする所の上端（底蓋の外面
 RIB_BOSS_CLEAR = 0.3          # リブと電池の枠の斜面の下端と、ボトムケースのボスのすき間
 
 # 重り: 収納部の左右の、底面と床の上面の間に、車のホイール用の貼り付け型の鉄のバランスウエイト（1 個 5 g）を 2 × 2 個ずつ
-# 埋める（片側 20 g、片手 40 g）。重りは底蓋に平行に置き、11 mm の辺を x、19 mm の辺を v に向ける。
+# 埋める（片側 20 g、片手 40 g）。重りは底蓋に平行に置き、短い辺を x、長い辺を v に向ける。
 # 重りの穴は底面に平行な直方体で、上は床の上面まで抜いて、上から重りを入れる（ボトムケースは底面を下にして刷るので、
 # 天井を作ると印刷の向きで水平な広いブリッジになる）。穴の上は別の部品の蓋（weight_lid()）でふさいで接着する。蓋は
 # 収納部の天井と同じく、ボトムケースの受けの段に載せる: 重りの上（WEIGHT_CLEAR_T 上）の高さで、穴を奥と手前へ
-# WEIGHT_LEDGE 広げる。左右には受けを作らない（左の穴の外は側面まで約 2 mm しかなく、収納部の側は天井の受けに接する）。
-# 穴は外の壁を厚くするために収納部の側へ寄せ、天井の受けの段の縁まで広げる: 天井の下面より上では、蓋の入る所と天井の受けの
-# 段がつながる。天井の下面より下は、受けの段の下（幅 CEILING_LEDGE）が穴と収納部の間の壁になる。蓋は下面が底蓋に平行、
-# 上面が床の上面と同じ高さ。4 つの穴（左右の手の、収納部の左右）は平面形と高さが同じなので、蓋は 1 種類
-WEIGHT = (11.0, 19.0, 4.0)    # 重り 1 個の x、v、厚さ（貼り付けのテープ込み）。公称値（要実測）
+# WEIGHT_LEDGE 広げる。左右には受けを作らない（左の穴の外は側面まで約 1.2 mm しかなく、収納部の側は天井の受けに食い込む）。
+# 左の穴は、外の側面と収納部の壁の間に幅がないので、収納部の側へ寄せて、収納部の壁との間の肉を WEIGHT_SKIN まで薄くする。
+# そのため穴は天井の受けの段の縁より WEIGHT_INNER だけ収納部の側へ入り込み、穴の左右の範囲（奥と手前は蓋の受けまで）では
+# 天井の受けの幅が CEILING_LEDGE - WEIGHT_INNER になる。蓋は天井の部品に当たらないよう、収納部の側の縁を受けの段の縁
+# （天井の部品の縁から CEILING_FIT）で止める。蓋と穴の収納部の側の縁の間の WEIGHT_INNER の帯は、上を天井の部品がふさぐ。
+# 右の穴は左の穴の鏡像の位置（収納部の右の壁から同じ距離）。蓋は下面が底蓋に平行、上面が床の上面と同じ高さ。
+# 4 つの穴（左右の手の、収納部の左右）は平面形と高さが同じで、蓋は x の向きに対称なので 1 種類
+WEIGHT = (11.6, 19.2, 3.9)    # 重り 1 個の x、v、厚さ（貼り付けのテープ込み）。実測値（公称は 11 × 19 × 4）
 WEIGHT_GRID = (2, 2)          # 重りの個数（x、v）
-WEIGHT_FIT = 0.1              # 重りと穴の横のすき間（片側）。左の穴の幅で決まる（外の側面と天井の受けの間が 24.2 しかない）
+WEIGHT_FIT = 0.2              # 重りと穴の横のすき間（片側）。左の穴の幅で決まる（外の側面と収納部の壁の間が 25.8 しかない）
 WEIGHT_CLEAR_T = 0.3          # 重りの上と蓋の下面のすき間
 WEIGHT_W0 = 1.4               # 穴の底: 底蓋の外面（底面）から。奥のゴム足の目印の溝の下に 1.0 残す
 WEIGHT_V_BACK = -9.5          # 重りの入る所の奥の端（FRAME の v）。奥の面取りの斜面から 1 mm 以上離れる
 WEIGHT_LEDGE = 1.0            # 蓋の受けの幅（奥と手前）
 WEIGHT_SKIN = 1.0             # 穴のまわり（外面、底面、床の上面、収納部）に残す肉の下限（bottom.py で確かめる）
+WEIGHT_INNER = CEILING_LEDGE - WEIGHT_SKIN   # 穴が天井の受けの段の縁より収納部の側へ入り込む量
 
 # 四隅のネジ: 底蓋の各辺から LID_SCREW_INSET 内側。ボトムケースのボスは床の上面の高さから底蓋の内面まで下ろし、
 # 隣り合う 2 つの壁につなげる。ボスの下面が底蓋の内面に当たる位置で、底蓋が底面と面一になる（4 か所とも）。
@@ -842,7 +846,7 @@ def weight_pocket_rect(sx):
     """重りの入る所の平面形（FRAME の x0, x1, v0, v1）。sx = -1 が収納部の左、1 が右。"""
     wx = WEIGHT_GRID[0] * WEIGHT[0] + 2 * WEIGHT_FIT
     wv = WEIGHT_GRID[1] * WEIGHT[1] + 2 * WEIGHT_FIT
-    edge = LID_GAP + CEILING_LEDGE   # 底蓋の端から穴の縁まで（天井の受けの段の縁）
+    edge = LID_GAP + WEIGHT_SKIN   # 底蓋の端から穴の縁まで（収納部の壁の外面から WEIGHT_SKIN）
     if sx < 0:
         x1 = LID_X[0] - edge
         x0 = x1 - wx
@@ -864,12 +868,27 @@ def weight_pockets():
     return out
 
 
-def weight_lid():
-    """重りの穴の蓋（別の部品。左手の収納部の左の穴に組み付けた位置）: 蓋の入る所から CEILING_FIT 内側の範囲を、
-    蓋の下面（底蓋に平行）から床の上面（水平）までの高さにした板。"""
-    x0, x1, v0, v1 = weight_pocket_rect(-1)
+def weight_lid_rect(sx):
+    """重りの穴の蓋の平面形（FRAME の x0, x1, v0, v1）。外の側は穴の縁から CEILING_FIT 内側、収納部の側は天井の受けの段の
+    縁（天井の部品の縁から CEILING_FIT）まで。"""
+    x0, x1, v0, v1 = weight_pocket_rect(sx)
     f, e = CEILING_FIT, WEIGHT_LEDGE
-    return local_box(x0 + f, x1 - f, v0 - e + f, v1 + e - f, weight_lid_w(), 50) & prism(Rectangle(1000, 1000), -30, B.FLOOR_Z)
+    if sx < 0:
+        x0, x1 = x0 + f, x1 - WEIGHT_INNER
+    else:
+        x0, x1 = x0 + WEIGHT_INNER, x1 - f
+    return x0, x1, v0 - e + f, v1 + e - f
+
+
+def weight_lid(sx=-1):
+    """重りの穴の蓋（別の部品。sx = -1 で左手の収納部の左の穴、1 で右の穴に組み付けた位置）: weight_lid_rect の範囲を、
+    蓋の下面（底蓋に平行）から床の上面（水平）までの高さにした板。"""
+    x0, x1, v0, v1 = weight_lid_rect(sx)
+    return local_box(x0, x1, v0, v1, weight_lid_w(), 50) & prism(Rectangle(1000, 1000), -30, B.FLOOR_Z)
+
+
+# 左右の穴の蓋が同じ形（同じ幅）であること
+assert abs((weight_lid_rect(-1)[1] - weight_lid_rect(-1)[0]) - (weight_lid_rect(1)[1] - weight_lid_rect(1)[0])) < 1e-9
 
 
 def weight_lid_print(part):
@@ -901,9 +920,8 @@ def weights():
 
 
 def weight_lids():
-    """プレビュー用: 収納部の左右の重りの穴の蓋（組み付けた位置）。右の穴の蓋は、左の穴の蓋を x にずらしたもの。"""
-    lid = weight_lid()
-    return Compound([lid, Pos(weight_pocket_rect(1)[0] - weight_pocket_rect(-1)[0], 0, 0) * lid])
+    """プレビュー用: 収納部の左右の重りの穴の蓋（組み付けた位置）。"""
+    return Compound([weight_lid(-1), weight_lid(1)])
 
 
 def usb_ledge_keep(grow=0.0):
