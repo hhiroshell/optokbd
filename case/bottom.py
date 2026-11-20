@@ -256,14 +256,9 @@ def check_weights():
     数えない。"""
     import bay
     case = build(weights=False)
-    s = bay.WEIGHT_SKIN
     out = 0.0
     for sx in (-1, 1):
-        x0, x1, v0, v1 = bay.weight_pocket_rect(sx)
-        w, e = bay.weight_lid_w(), bay.WEIGHT_LEDGE
-        grown = bay.local_box(x0 - s, x1 + s, v0 - s, v1 + s, bay.WEIGHT_W0 - s, w + 0.1)
-        grown += bay.local_box(x0 - s, x1 + s, v0 - e - s, v1 + e + s, w, 50)
-        grown &= bay.prism(Rectangle(1000, 1000), -30, FLOOR_Z)
+        grown = bay.weight_pocket(sx, bay.WEIGHT_SKIN) & bay.prism(Rectangle(1000, 1000), -30, FLOOR_Z)
         grown -= bay.lid_region(bay.LID_GAP + bay.CEILING_LEDGE) & bay.slab(bay.CEILING_W, 50)
         out += (grown - case).volume
     return out

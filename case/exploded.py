@@ -58,8 +58,8 @@ def layers():
     return [
         ("Lid, controller PCB (XIAO nRF52840) and battery", Compound([bay.lid(), board, xiao, usb, battery]), 0, "right"),
         ("Bottom case (3D-printed PLA) with the bay ceiling", Compound([B.build(), bay.ceiling()]), 60, "left"),
-        ("Steel weights (2 x 2 x 5 g per pocket)", bay.weights(), 20, "right"),
-        ("Weight pocket lids (3D-printed PLA)", bay.weight_lids(), 25, "left"),
+        ("Steel weights (4 x 5 g per pocket, the rearmost stacked)", bay.weights(), 20, "right"),
+        ("Weight pocket lids and spacers (3D-printed PLA)", bay.weight_lids(), 25, "left"),
         ("Floor foam (PORON 2 mm)", Pos(0, 0, B.FLOOR_Z) * extrude(F.to_face(floor), F.FLOOR_FOAM_T), 70, "right"),
         ("Matrix PCB with hot-swap sockets", Pos(0, 0, M.PCB_TOP_Z) * matrix, 25, "left"),
         ("Plate foam (PORON 3 mm)", Pos(0, 0, M.PCB_TOP_Z) * extrude(F.to_face(F.plate_foam()), F.PLATE_FOAM_T), 25,
