@@ -24,7 +24,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from build123d import Circle, GeomType, Pos, Rectangle, Rot, Solid, extrude
+from build123d import Circle, GeomType, Polygon, Pos, Rectangle, Rot, Solid, extrude
 
 import bottom as B
 import gasket as G
@@ -52,11 +52,13 @@ CENTER_D = 4.0                # スイッチの中央の穴（KiCad の値）
 CENTER_PRINT_D = 3.9          # 印刷する中央の穴（スイッチの軸 Ø4.0 より小さく、押し込んできつくはまる）
 HOLE_ALLOWANCE = 0.3          # そのほかの穴の直径に足す量（印刷で細る分）
 
-# ホットスワップソケット（Kailh MX）の大まかな形: スイッチの中心を原点、y は奥が正（スイッチを上から見た向き）。
-# ピンの穴は (-3.81, 2.54) と (2.54, 5.08)。本体は 2 つの長方形をずらして重ねた形、両端にハンダ付けの端子
+# ホットスワップソケット（Kailh MX、CPG151101S11）の大まかな形: スイッチの中心を原点、y は奥が正（スイッチを上から見た向き）。
+# ピンの穴は (-3.81, 2.54) と (2.54, 5.08)。本体は L 字形: 奥の帯が全長（10.9）にわたり、手前の左（(-3.81, 2.54) のピンの
+# まわり）が張り出す。張り出しの右の S 字の縁は斜めの直線で近似する（内側に入り込む角はスイッチの中心の側）。外形は
+# データシートの図と、基板のフットプリントの裏のシルクから。両端にハンダ付けの端子（フットプリントのパッドの範囲）
 SOCKET_H = 1.8                # 本体の高さ（基板の裏から下へ）
-SOCKET_TAB_H = 0.5            # 端子の高さ
-SOCKET_BODY = [(-5.6, 0.6, 0.3, 4.6), (-1.3, 3.0, 4.6, 7.0)]   # (x0, y0, x1, y1)
+SOCKET_TAB_H = 1.5            # 端子の高さ（データシートの側面図。曲げた端が本体の高さ近くまで立ち上がる）
+SOCKET_BODY = [(-6.05, 1.05), (-2.8, 1.05), (-0.6, 2.75), (4.75, 2.75), (4.75, 6.75), (-6.05, 6.75)]   # 本体の外形
 SOCKET_TABS = [(-8.65, 1.35, -5.35, 3.8), (4.05, 3.9, 7.35, 6.35)]
 PIN_LOCAL = ((-3.81, 2.54), (2.54, 5.08))
 
@@ -146,10 +148,9 @@ def board_outline_segments(mirror=False):
 
 def socket(x, y, angle):
     """ホットスワップソケットの大まかな形（基板の裏 z = 0 から下へ）。ピンの穴は基板と同じく貫通させる。"""
-    body = None
-    for x0, y0, x1, y1, h in [(*r, SOCKET_H) for r in SOCKET_BODY] + [(*r, SOCKET_TAB_H) for r in SOCKET_TABS]:
-        part = Pos((x0 + x1) / 2, (y0 + y1) / 2, -h) * extrude(Rectangle(x1 - x0, y1 - y0), h)
-        body = part if body is None else body + part
+    body = Pos(0, 0, -SOCKET_H) * extrude(Polygon(*SOCKET_BODY, align=None), SOCKET_H)
+    for x0, y0, x1, y1 in SOCKET_TABS:
+        body += Pos((x0 + x1) / 2, (y0 + y1) / 2, -SOCKET_TAB_H) * extrude(Rectangle(x1 - x0, y1 - y0), SOCKET_TAB_H)
     return Pos(x, y) * Rot(0, 0, angle) * body
 
 

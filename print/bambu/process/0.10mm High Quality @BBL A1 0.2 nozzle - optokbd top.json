@@ -2,7 +2,6 @@
     "from": "User",
     "independent_support_layer_height": "0",
     "inherits": "0.10mm High Quality @BBL A1 0.2 nozzle",
-    "initial_layer_flow_ratio": "1.08",
     "name": "0.10mm High Quality @BBL A1 0.2 nozzle - optokbd top",
     "print_extruder_id": [
         "1"

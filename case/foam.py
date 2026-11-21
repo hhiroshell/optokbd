@@ -1,7 +1,8 @@
 # 遊舎工房のレーザー加工サービス（その2、フォーム = PORON）に出す、フォームとガスケットのカットデータ（左右 2 台分）。
-# - 床のフォーム（2 mm）: マトリクス基板とボトムケースの床の間（2.5 mm）。ふだんは基板に触れず、基板が大きくたわんだときだけ
-#   受け止める。基板の裏の部品（ソケット、ダイオード、J4 = マトリクスのコネクタ）、スイッチの軸と突起（基板の裏へ出る）、
-#   収納部の天井の開口、床から出ているもの（奥のネジのまわりの台）を切り抜く
+# - 床のフォーム（2 mm）: マトリクス基板とボトムケースの床の間（3.0 mm）。ふだんは基板に触れず、基板が大きくたわんだときだけ
+#   受け止める。基板の裏の部品（ソケットの本体と端子、J4 = マトリクスのコネクタ）、スイッチの軸と突起（基板の裏へ出る）、
+#   収納部の天井の開口、床から出ているもの（奥のネジのまわりの台）を切り抜く。ダイオードは切り抜かない（board_cuts）。
+#   破れないように、残るフォームの幅を FOAM_WEB 以上にする（clean_foam）
 # - プレートのフォーム（3 mm）: プレートとマトリクス基板の間（3.4 mm）。スイッチの 14 mm 角の穴
 # - ガスケット（3 mm、接着シート付き）: タブ 1 つにつき上下 2 枚。上下とも、シールの面をタブに向けて貼る。シールはデザインを
 #   上から見た面の裏に付くので、上のガスケットは組み付けた形を上から見た形、下のガスケットはその鏡像。右手は左手の鏡像なので、
@@ -26,11 +27,11 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from build123d import Face, GeomType, Pos, Vector, Wire, extrude
+from build123d import Box, Compound, Face, GeomType, Pos, Vector, Wire, extrude
 from shapely import affinity
-from shapely.geometry import MultiPolygon, Point, Polygon, box
+from shapely.geometry import LineString, MultiPolygon, Point, Polygon, box
 from shapely.geometry.polygon import orient
-from shapely.ops import unary_union
+from shapely.ops import nearest_points, unary_union
 
 import bottom as B
 import layout as L
@@ -47,13 +48,16 @@ GASKET_T = 3.0                 # 上下 2 枚とプレートで 7.6 → 6.5 mm �
 
 OUTLINE_INSET = 0.2            # 床のフォームの左右の辺: マトリクス基板の外形から内側へ
 FLOOR_FOAM_GROW = 0.4          # 床のフォームの奥と手前の辺: プレートの外形から外へ
-EDGE_MERGE = 0.75              # 切り抜きと外周の間が 2 × EDGE_MERGE より狭いところは、外へ開く
-PART_MARGIN = 0.5              # 基板の裏の部品の外形（ソケットは matrix_mock の形、ほかはコートヤード）から外へ
+PART_MARGIN = 0.5              # 基板の裏の部品の外形（ソケットは matrix_mock の形、J4 はコートヤード）から外へ
 HOLE_MARGIN = 0.5              # スイッチの軸と突起の穴の半径に足す量
-MIN_HOLE_D = 1.5               # これより小さい穴（ビア）は切り抜かない
+POST_D = (4.0, 2.0)            # スイッチの軸と左右の突起の穴（ほかの穴は、ソケットのピンの Ø3 とビア）
+POST_LOCAL = ((0.0, 0.0), (-5.08, 0.0), (5.08, 0.0))   # スイッチの軸と左右の突起の位置（スイッチの中心が原点）
 CASE_MARGIN = 0.5              # 床から出ているものの外形から外へ
-MERGE = 1.0                    # 同じキーの切り抜きどうし、切り抜きと外周の間が 2 × MERGE より狭いところは、つなげる
-MIN_WEB = 0.4                  # 残るフォームのうち、幅 2 × MIN_WEB より細いところは切り落とす
+OPEN_BETWEEN = [((0, 3), (0, 4))]   # 間のフォームをなくすキー（行, 列。scripts/place_matrix.py の KEYS）: R0C3 と R0C4 の間
+                                    # （収納部の開口の奥）は、奥の外周から垂れ下がる形になり、ほかの部分とほとんどつながらず切れやすい
+EDGE_WEB = 1.3                 # 切り抜きと、外周や大きな開口（収納部の開口など）の間の下限（これ以上あれば、つなげたまま残す）
+FOAM_WEB = 2.0                 # 残るフォームの幅の下限。切り抜きどうし、切り抜きと外周の間がこれより狭いところは、つなげるか
+                               # 外へ開く（となりのキーのソケットの端子の間が約 2.05 なので、これより広くはできない）
 MAX_SCRAP = 100.0              # 捨てる切れ端（いちばん大きな 1 枚以外。カットしないのでシートの残りの側に残る）の面積の上限 [mm^2]
 PLATE_HOLE = 14.0              # プレートのフォームのスイッチの穴（プレートと同じ）
 PLATE_FOAM_GROW = 0.4          # プレートのフォームの外形: プレートの外形（タブを除く）から外へ
@@ -81,6 +85,9 @@ CUT1, CUT2 = "#ff0000", "#0000ff"
 STROKE_W = 0.1                 # 線幅 [mm]（ルールは 0.001 mm か 0.1 mm）
 CHORD = 0.2                    # 曲線を折れ線にするときの 1 本の長さの上限 [mm]
 QUAD_SEGS = 16                 # 円弧（オフセットの角や円）を 90° あたり何本の線にするか
+FIT_GAP = 0.15                 # これより狭い（幅 2 × FIT_GAP 未満の）床の上面の穴は落とす（天井などのまわりの 0.2 のすき間）
+OPENING_TOL = 1.0              # 収納部の開口の角の丸み（R2）や小さな段を、1 本の直線にまとめるときの誤差 [mm]
+STRAIGHT_TOL = 0.3             # 床のフォームの曲線（外周、台）を直線にまとめるときの誤差 [mm]
 SIMPLIFY = 0.01                # 床のフォームの輪郭の点を、この誤差 [mm] の範囲で間引く
 
 
@@ -115,6 +122,46 @@ def grow(geom, d):
     return geom.buffer(d, quad_segs=QUAD_SEGS)
 
 
+def sharp(geom, d):
+    """角を丸めずに広げる（d が負なら狭める）。"""
+    return geom.buffer(d, join_style="mitre")
+
+
+def right_angles(poly, keys, tol=None, skew=None):
+    """角の丸みや小さな段を直線にまとめ（OPENING_TOL）、斜めの辺を、外側へ直角に曲がる 2 辺に置き換えた形（縦と横の辺だけの
+    形）。角に残る小さな段も埋める。
+    ただし、直角にするとキーの切り抜き（keys）との間が EDGE_WEB より狭くなり、つながっていたフォームが切れてしまうところは、
+    斜めの辺のままにする。skew を与えると、縦か横からのずれが skew 未満の斜めの辺だけを直角にする。"""
+    poly = orient(poly.simplify(OPENING_TOL if tol is None else tol), sign=1.0)
+    corners = []
+    for ring in [poly.exterior] + list(poly.interiors):
+        pts = list(ring.coords)
+        for (x0, y0), (x1, y1) in zip(pts[:-1], pts[1:]):
+            if abs(x1 - x0) > 1e-6 and abs(y1 - y0) > 1e-6 and (skew is None or min(abs(x1 - x0), abs(y1 - y0)) < skew):
+                # 外周は反時計回り、穴は時計回りなので、どちらも辺の右が外側
+                c = next(c for c in ((x1, y0), (x0, y1)) if (x1 - x0) * (c[1] - y0) - (y1 - y0) * (c[0] - x0) < 0)
+                t = Polygon([(x0, y0), c, (x1, y1)])
+                if not any(poly.distance(k) >= EDGE_WEB and t.distance(k) < EDGE_WEB for k in keys):
+                    corners.append(t)
+    # 角に残る小さな段（開口へ入り込むフォームの小さな出っ張り。内側へ曲がる頂点の両側の辺がどちらも FOAM_WEB より短い
+    # もの）は、段を包む長方形で埋める
+    poly = orient(unary_union([poly] + corners), sign=1.0)
+    pts = list(poly.exterior.coords)[:-1]
+    steps = []
+    for i, (bx, by) in enumerate(pts):
+        (ax, ay), (cx, cy) = pts[i - 1], pts[(i + 1) % len(pts)]
+        short = math.dist((ax, ay), (bx, by)) < FOAM_WEB and math.dist((bx, by), (cx, cy)) < FOAM_WEB
+        if short and (bx - ax) * (cy - by) - (by - ay) * (cx - bx) < 0:   # 右へ曲がる = 内側へ曲がる頂点
+            steps.append(box(min(ax, cx), min(ay, cy), max(ax, cx), max(ay, cy)))
+    return unary_union([poly] + steps)
+
+
+def straight(geom, d):
+    """曲線を直線にまとめた形: d 広げた形（d が負なら狭めた形）を、STRAIGHT_TOL の誤差の範囲で少ない点の折れ線にする。
+    d が STRAIGHT_TOL 以上なら元の形を包み、−STRAIGHT_TOL 以下なら元の形に収まる。"""
+    return sharp(geom, d).simplify(STRAIGHT_TOL)
+
+
 def mirror_x(geom):
     return affinity.scale(geom, xfact=-1, yfact=1, origin=(0, 0))
 
@@ -126,7 +173,7 @@ def polygons(geom):
 def floor_outline(sx):
     """床のフォームの外形。奥と手前は壁の内面（プレートから L.PLATE_GAP 外）の手前まで、左右は基板の外形まで（ボトムケースの
     左右には壁がなく、床の端はプレートの辺の位置）。奥のネジのまわりの台は、床から出ているものとして切り抜く。"""
-    poly = to_poly(P.base(FLOOR_FOAM_GROW, M.MATRIX_SIDE_GROW - OUTLINE_INSET))
+    poly = straight(to_poly(P.base(FLOOR_FOAM_GROW, M.MATRIX_SIDE_GROW - OUTLINE_INSET)), -STRAIGHT_TOL)
     return poly if sx > 0 else mirror_x(poly)
 
 
@@ -157,16 +204,19 @@ def courtyards(pcb, origin):
 
 def socket_poly(x, y, angle):
     """ホットスワップソケットの大まかな外形（matrix_mock と同じ。本体と両端の端子）。"""
-    shape = unary_union([box(*r) for r in M.SOCKET_BODY + M.SOCKET_TABS])
+    shape = unary_union([Polygon(M.SOCKET_BODY)] + [box(*r) for r in M.SOCKET_TABS])
     return affinity.translate(affinity.rotate(shape, angle, origin=(0, 0)), x, y)
 
 
 def board_cuts(hand):
-    """基板の裏で避けるもの（左右それぞれの手の平面）。"""
+    """基板の裏で避けるもの（左右それぞれの手の平面）: キーごとの切り抜き（key_cut）と J4。ダイオード（SOD-123、高さ 1.35 以下）は切り抜かない: 基板の下面とフォームの上面の間が 1.0 なので、触れても 0.35 以下。"""
     name, origin, sx = BOARDS[hand]
     pcb = PCBS / name / f"{name}.kicad_pcb"
-    M.KICAD_OFFSET = origin
-    holes = M.kicad_holes(pcb)
+    saved, M.KICAD_OFFSET = M.KICAD_OFFSET, origin   # 左手のモック（matrix_mock()）のために、読んだら戻す
+    try:
+        holes = M.kicad_holes(pcb)
+    finally:
+        M.KICAD_OFFSET = saved
     sw = M.switches(holes)
     # スイッチの中心が、プレートのスイッチ穴（右手は x を反転）と一致すること
     keys = [(sx * k.center.X, k.center.Y) for k in P.keys()]
@@ -176,78 +226,164 @@ def board_cuts(hand):
     parts = courtyards(pcb, origin)
     refs = [r for r, _ in parts]   # ダイオード 25 個と、マトリクスのコネクタ（参照は J4）
     assert sum(r.startswith("D") for r in refs) == 25 and sum(r.startswith("J") for r in refs) == 1, refs
-    # キーごとに、ソケット、スイッチの軸と突起の穴、いちばん近いダイオードをまとめ、間の細いところをつなぐ
-    groups = [[grow(socket_poly(x, y, a), PART_MARGIN)] for x, y, a in sw]
+    # スイッチの軸と突起の穴が、key_cut の位置にあること
+    posts = [(x, y) for x, y, d in holes if any(abs(d - p) < 1e-6 for p in POST_D)]
+    for x, y, a in sw:
+        for px, py in POST_LOCAL:
+            q = affinity.translate(affinity.rotate(Point(px, py), a, origin=(0, 0)), x, y)
+            assert min(q.distance(Point(p)) for p in posts) < 0.01, (hand, x, y)
+    keys = [affinity.translate(affinity.rotate(key_cut(), a, origin=(0, 0)), x, y) for x, y, a in sw]
+    return keys + [sharp(poly, PART_MARGIN) for ref, poly in parts if ref.startswith("J")]
 
-    def nearest(px, py):
-        return min(range(len(sw)), key=lambda i: math.hypot(sw[i][0] - px, sw[i][1] - py))
 
-    for x, y, d in holes:
-        if d >= MIN_HOLE_D:
-            groups[nearest(x, y)].append(Point(x, y).buffer(d / 2 + HOLE_MARGIN, quad_segs=QUAD_SEGS))
-    others = []
-    for ref, poly in parts:
-        if ref.startswith("D"):
-            groups[nearest(poly.centroid.x, poly.centroid.y)].append(grow(poly, PART_MARGIN))
-        else:
-            others.append(grow(poly, PART_MARGIN))
-    return [close(unary_union(g), MERGE) for g in groups] + others
+def key_cut():
+    """キーごとの切り抜き（スイッチの中心を原点、スイッチを上から見た向き）: ソケット（本体と端子）と、スイッチの軸と左右の突起の
+    穴（それぞれを包む正方形）をまとめて包む凸多角形。軸と左右の突起の穴の手前は、直線 2 本で切る（左右の突起の穴の手前の角から、
+    軸の穴の手前の角を通って、軸の中心の手前で交わる）。次の角は斜めにせず直角に:
+    - 奥の左（左の端子と本体の間）: 内側に入り込む直角（左の端子の奥の辺と本体の左の辺）
+    - 奥の右（本体と右の端子の間）: 外側に張り出す直角（本体の奥の辺と右の端子の右の辺）
+    - 手前の左（左の突起の穴と左の端子の間）: 内側に入り込む直角（突起の穴の左の辺と左の端子の手前の辺）"""
+    body = sharp(Polygon(M.SOCKET_BODY), PART_MARGIN)
+    left, right = sorted((sharp(box(*r), PART_MARGIN) for r in M.SOCKET_TABS), key=lambda t: t.centroid.x)
+    holes = [Point(x, y).buffer(d / 2 + HOLE_MARGIN).envelope for (x, y), d in zip(POST_LOCAL, POST_D + POST_D[1:])]
+    post, peg = holes[0], min(holes[1:], key=lambda h: h.centroid.x)   # 軸と左の突起の穴
+    (px, py), (cx, cy) = (peg.bounds[0], peg.bounds[1]), (post.bounds[0], post.bounds[1])
+    apex = Point(post.centroid.x, cy + (cy - py) / (cx - px) * (post.centroid.x - cx))
+    hull = unary_union([body, left, right, apex] + holes).convex_hull
+    hull = hull.difference(box(left.bounds[0], left.bounds[3], body.bounds[0], body.bounds[3] + 1))
+    hull = hull.difference(box(left.bounds[0] - 1, peg.bounds[1] - 1, peg.bounds[0], left.bounds[1]))
+    return unary_union([hull, box(body.bounds[2], right.bounds[3], right.bounds[2], body.bounds[3])])
 
 
 # ---- ケースの床 ----
 
 def case_cuts():
-    """床で避けるもの（左手の平面）: 収納部の天井の開口と、床の上面より上に出ているもの。"""
+    """床で避けるもの（左手の平面）: (収納部の開口, 床の上面より上に出ているもの)。収納部の開口は、天井と重りの穴の蓋を付けた
+    ボトムケースの床の上面に残る穴のうち、天井の開口にかかるもの（天井や蓋のまわりのすき間は落とす）。収納部の手前の壁より
+    手前（J1 のケーブルの溝。ケーブルは溝の中を通る）の上は埋める。角は floor_cuts で直角にする（right_angles）。"""
     import bay
-    cuts = [to_poly(f) for f in bay.floor_openings()]
-    # 床の上面より上でフォームの範囲に入るもの（奥のネジのまわりの台）。台の中のネジ穴は埋める
+    case = B.build()
+    z0 = B.FLOOR_Z - 0.05
+    sec = Compound([case, bay.ceiling(), bay.weight_lids()]) & (Pos(0, 0, z0) * Box(400, 400, 0.01))
+    floor = unary_union([to_poly(f).buffer(0) for f in sec.faces() if abs(f.normal_at().Z) > 0.99])
+    front = bay.ceiling().bounding_box().min.Y   # 天井の手前の端（収納部の手前の壁）
+    holes = floor_outline(1).difference(floor).intersection(box(-1000, front, 1000, 1000))
+    holes = [h for g in polygons(holes) for h in polygons(sharp(sharp(g, -FIT_GAP), FIT_GAP))]
+    ceiling_openings = [to_poly(f) for f in bay.floor_openings()]
+    openings = [h for h in holes if h.area > 5 and any(h.intersects(o) for o in ceiling_openings)]
+    cuts = []
+    # 床の上面より上でフォームの範囲に入るもの（奥のネジのまわりの台）。台の手前の辺から外周の外まで、縦と横の辺だけの長方形で
+    # 切る（左右の端の台は横へ、まん中の台は奥へ）。手前のネジの頭の出っ張り（壁の内側にわずかに出る）は避けない（フォームが
+    # つぶれて逃げる）
+    screws = [(Point(s.pos.X, s.pos.Y), s.back) for s in L.screws()]
     z0 = B.FLOOR_Z + 0.05
     slab = Pos(0, 0, z0) * extrude(to_face(floor_outline(1)), FLOOR_FOAM_T + 0.3)
-    inter = B.build() & slab
+    inter = case & slab
     for f in inter.faces() if inter is not None else []:
         if f.geom_type == GeomType.PLANE and f.normal_at().Z < -0.999 and abs(f.center().Z - z0) < 1e-4:
-            cuts.append(grow(Polygon(to_poly(f).exterior), CASE_MARGIN))
-    return cuts
+            poly = Polygon(to_poly(f).exterior)
+            if min(screws, key=lambda s: poly.distance(s[0]))[1]:   # いちばん近いネジが奥のネジ
+                x0, y0, x1, _ = poly.bounds
+                cx, (ox0, _, ox1, _) = poly.centroid.x, floor_outline(1).bounds
+                m = CASE_MARGIN
+                if cx < ox0 + (ox1 - ox0) / 4:
+                    cuts.append(box(ox0 - 10, y0 - m, x1 + m, 1000))
+                elif cx > ox1 - (ox1 - ox0) / 4:
+                    cuts.append(box(x0 - m, y0 - m, ox1 + 10, 1000))
+                else:
+                    cuts.append(box(x0 - m, y0 - m, x1 + m, 1000))
+    return openings, cuts
 
 
 # ---- フォーム ----
 
-def close(geom, r):
-    """幅 2 × r より狭いすき間を埋める。"""
-    return grow(grow(geom, r), -r)
+def clean_foam(outline, cuts, openings):
+    """外形から切り抜きを引く。切り抜きどうし、切り抜きと外周の間が FOAM_WEB より狭いところは、つなげるか外へ開く: 幅 FOAM_WEB
+    より細いところを落とし（角を丸めずに FOAM_WEB / 2 狭めて広げ直す）、それでも残る輪郭どうしの近いところ（角どうしが向き合う
+    ところ）は、いちばん近い 2 点を結ぶ幅 FOAM_WEB の四角い溝で切る。切り抜きと、外周や大きな開口（openings）の間は、
+    EDGE_WEB 以上あればつなげたまま残す（外周を FOAM_WEB − EDGE_WEB 外へ広げ、大きな開口を同じだけ狭めた形で処理し、最後に
+    外形と大きな開口で切る）。外周と大きな開口の間のように、両側をずらしたために EDGE_WEB より細く残ったところは、最後に
+    同じ溝で切る。いちばん大きな 1 枚と、捨てる切れ端を返す。"""
+    d = FOAM_WEB - EDGE_WEB
+    foam = sharp(outline, d).difference(unary_union(cuts + [sharp(o, -d) for o in openings]))
+    def thin(foam, web):
+        main = max(polygons(foam), key=lambda p: p.area)
+        rings = [main.exterior] + list(main.interiors)
+        return [LineString(nearest_points(a, b)).buffer(FOAM_WEB / 2, cap_style="square", join_style="mitre")
+                for i, a in enumerate(rings) for b in rings[i + 1:] if a.distance(b) < web - 0.01]
 
-
-def clean_foam(outline, groups):
-    """外形から切り抜きを引く。groups は切り抜きのまとまり（キーごと、J4 と収納部の天井の開口）。まとまりのうち、外周との間が
-    2 × EDGE_MERGE より狭いものは外へ開く（まとまりどうしはつながない）。幅 2 × MIN_WEB より細いところは落とす。
-    いちばん大きな 1 枚と、捨てる切れ端を返す。"""
-    outside = box(*grow(outline, 20).bounds).difference(outline)
-    cuts = []
-    for g in groups:
-        if g.distance(outside) < 2 * EDGE_MERGE:
-            g = unary_union([g, close(unary_union([g, outside]), EDGE_MERGE).intersection(outline)])
-        cuts.append(g)
-    foam = outline.difference(unary_union(cuts))
-    foam = grow(grow(foam, -MIN_WEB), MIN_WEB).intersection(outline)
+    while True:
+        # 角を丸めずに広げ直すと、とがった角がもとの形より外へ出る（切った溝を埋め戻す）ことがあるので、広げ直す前の形と
+        # 重なるところだけ残す
+        foam = sharp(sharp(foam, -FOAM_WEB / 2), FOAM_WEB / 2).intersection(foam)
+        slots = thin(foam, FOAM_WEB)
+        if not slots:
+            break
+        foam = foam.difference(unary_union(slots))
+    foam = foam.intersection(outline).difference(unary_union(openings))
+    while slots := thin(foam, EDGE_WEB):
+        foam = foam.difference(unary_union(slots))
     parts = sorted(polygons(foam), key=lambda p: p.area, reverse=True)
     return parts[0].simplify(SIMPLIFY, preserve_topology=True), parts[1:]
 
 
-def floor_groups(hand, case):
-    """床のフォームの切り抜きのまとまり（左右それぞれの手の平面）。"""
+def floor_cuts(hand, case):
+    """床のフォームの切り抜き（左右それぞれの手の平面）: (キーごとの切り抜き, 大きな開口)。大きな開口は、収納部の開口、
+    奥のネジのまわりの台、J4、OPEN_BETWEEN のキーの間。OPEN_BETWEEN のキーの間は、2 つのキーの切り抜きを包む形を奥の外周まで
+    のばし、近くの収納部の天井の開口の縁まで直線でつないで切り抜く（間に細い切れ端や出っ張りを残さない）。"""
     _, _, sx = BOARDS[hand]
-    case = case if sx > 0 else [mirror_x(c) for c in case]
-    keys_and_j4 = board_cuts(hand)
-    # J4 と収納部の天井の開口は重なるので 1 つのまとまりに
-    j4 = keys_and_j4[-1]
-    groups = keys_and_j4[:-1] + [close(unary_union([j4] + [c for c in case if c.intersects(j4)]), MERGE)]
-    return groups + [c for c in case if not c.intersects(j4)]
+    *keys, j4 = board_cuts(hand)
+    openings, pads = [c if sx > 0 else [mirror_x(p) for p in c] for c in case]
+    pairs = []
+    for pair in OPEN_BETWEEN:
+        centers = [Point(sx * M._S["KEYS"][k][0], -M._S["KEYS"][k][1]) for k in pair]
+        pair_cuts = [next(c for c in keys if c.contains(k)) for k in centers]
+        keys = [c for c in keys if all(c is not p for p in pair_cuts)]   # 2 つのキーの切り抜きは、包む形に含まれる
+        pairs.append(pair_cuts)
+    # 収納部の開口とキーの切り抜きの間が EDGE_WEB より狭いところは、開口の、キーの側の辺を、キーの切り抜きから EDGE_WEB
+    # 離れるまでまっすぐ下げる（フォームが開口の縁に少しかかる）。キーの切り抜きが開口と重なる（開口の中にある）ときはそのまま
+    def clear_keys(o):
+        gap = EDGE_WEB + 0.2   # ちょうど EDGE_WEB だと、細いところを落とす処理で切れることがある
+        for k in keys:
+            if 0 < o.distance(k) < EDGE_WEB:
+                (x0, y0, x1, y1), (ox0, oy0, ox1, oy1) = k.bounds, o.bounds
+                if x1 <= ox0 + EDGE_WEB:     # キーが開口の左
+                    o = o.intersection(box(x1 + gap, -1000, 1000, 1000))
+                elif x0 >= ox1 - EDGE_WEB:   # 右
+                    o = o.intersection(box(-1000, -1000, x0 - gap, 1000))
+                elif y1 <= oy0 + EDGE_WEB:   # 手前
+                    o = o.intersection(box(-1000, y1 + gap, 1000, 1000))
+                else:                        # 奥
+                    o = o.intersection(box(-1000, -1000, 1000, y0 - gap))
+        return max(polygons(o), key=lambda p: p.area)
+    openings = [clear_keys(right_angles(o, keys)) for o in openings] + pads + [j4]
+    for pair_cuts in pairs:
+        both = unary_union(pair_cuts)
+        region = unary_union([both, affinity.translate(both, 0, 30)]).convex_hull
+        near = [c for c in openings if c.distance(region) < FOAM_WEB]
+        # 近くの開口のうち、2 つのキーの左右の範囲で、包む形の手前の端から FOAM_WEB 手前までにある部分まで包む
+        rx0, ry0, rx1, ry1 = region.bounds
+        bands = [c.intersection(box(rx0, ry0 - FOAM_WEB, rx1, ry1)) for c in near]
+        region = unary_union([region] + bands).convex_hull
+        # 開口の左右の辺と FOAM_WEB 未満の段になるところは、開口の辺にそろえる（小さな出っ張りを残さない）。ただし、そろえると
+        # キーの切り抜きとの間が EDGE_WEB より狭くなり、つながっていたフォームが切れてしまうときはそろえない
+        for c in near:
+            (x0, _, x1, y1), (rx0, _, rx1, ry1) = c.bounds, region.bounds
+            exts = ([box(x0, y1 - 1, rx0 + 1, ry1)] if 0 < rx0 - x0 < FOAM_WEB else []) + \
+                   ([box(rx1 - 1, y1 - 1, x1, ry1)] if 0 < x1 - rx1 < FOAM_WEB else [])
+            for ext in exts:
+                new = unary_union([region, ext]).convex_hull
+                if not any(region.distance(k) >= EDGE_WEB and new.distance(k) < EDGE_WEB for k in keys):
+                    region = new
+        # 縦か横からわずかにずれた斜めの辺は、縦と横の辺にする
+        openings.append(right_angles(region, keys, tol=0.01, skew=1.0))
+    return keys, openings
 
 
 def floor_foams(case):
-    """床のフォーム: {"l": 左手, "r": 右手}、それぞれ (Polygon, 切れ端)。右手の基板はダイオードの向きを反転していないので、
-    左右で切り抜きが違う（裏返しても使えない）。"""
-    return {hand: clean_foam(floor_outline(sx), floor_groups(hand, case)) for hand, (_, _, sx) in BOARDS.items()}
+    """床のフォーム: {"l": 左手, "r": 右手}、それぞれ (Polygon, 切れ端)。右手の基板はキーの配置を反転しただけで、フットプリントは
+    鏡像にしていないので、左右で切り抜きが違う（裏返しても使えない）。"""
+    return {hand: clean_foam(floor_outline(sx), *floor_cuts(hand, case)) for hand, (_, _, sx) in BOARDS.items()}
 
 
 def plate_foam():
@@ -433,7 +569,7 @@ def main():
     for hand, (f, scraps) in floor.items():
         print(f"floor foam {hand}: {width(f):.2f} x {height(f):.2f} mm, holes {len(f.interiors)}, "
               f"min web {min_web(f):.2f}, scraps {[round(s.area, 1) for s in scraps]}")
-        assert all(s.area <= MAX_SCRAP for s in scraps)
+        assert all(s.area <= MAX_SCRAP for s in scraps) and min_web(f) >= EDGE_WEB - 0.01
     plate = plate_foam()
     print(f"plate foam: {width(plate):.2f} x {height(plate):.2f} mm, holes {len(plate.interiors)}, min web {min_web(plate):.2f}")
     x0 = y0 = SHEET_MARGIN + 1.0
