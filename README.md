@@ -5,8 +5,9 @@ The case is designed in [build123d](https://github.com/gumyr/build123d) and the 
 
 ![Exploded view of the left half](docs/images/exploded-l.svg)
 
-- The current version is v0.2.0. Both halves are assembled and working. The right-hand case is the left one mirrored.
-  Design notes and the parts list are in [docs/v0.2.0.md](docs/v0.2.0.md) (in Japanese).
+- The current version is v0.2.1. Both halves are assembled and working. The right-hand case is the left one mirrored.
+  Design notes, the parts list, and the changes since v0.2.0 are in [docs/v0.2.1.md](docs/v0.2.1.md) (in Japanese).
+  The v0.2.0 notes are at the `v0.2.0` tag.
 - v0.1.0 (a FreeCAD case and wired PCBs) is available at the `v0.1.0` tag.
 - The firmware lives in [hhiroshell/zmk-config](https://github.com/hhiroshell/zmk-config).
 - Opto draws heavily on foostan's [Cornelius](https://github.com/foostan/corneliuskbd), and the exploded view above follows
@@ -16,7 +17,7 @@ The case is designed in [build123d](https://github.com/gumyr/build123d) and the 
 
 | Directory | Contents |
 |---|---|
-| `case/` | 3D models of the case and related parts (build123d, a uv project): top case, bottom case, lid and controller bay, palm rest, and soldering jigs. Also generates the foam and gasket cut files and the PCB and plate outlines |
+| `case/` | 3D models of the case and related parts (build123d, a uv project): top case, bottom case, lid and controller bay, palm rest, soldering jigs, and a stick for pressing the XIAO reset button. Also generates the foam and gasket cut files and the PCB and plate outlines |
 | `pcbs/` | KiCad projects: `matrix-left` and `matrix-right` (matrix PCBs), `controller` (controller PCB), `plate` (FR-4 switch plate), `root` (schematic of the whole keyboard) |
 | `plate/` | Switch plate DXF (`plate_left.dxf`), the reference for the case outline. The right hand uses the same plate flipped over |
 | `layout/` | Key layout (Keyboard Layout Editor JSON) |
@@ -38,7 +39,7 @@ uv run python exploded.py           # regenerate docs/images/exploded-l.svg
 
 - `case/out/print/`: parts to print (STEP / STL / 3MF). The cases, the lid, the bay ceiling, and the palm rest are written for
   the left hand (`-l`) and, mirrored, for the right hand (`-r`). The weight pocket lid (`weight-lid`) is one part for all four
-  pockets; print four.
+  pockets; print four. The reset stick (`reset-pin`) works for both hands.
 - `case/out/order/`: files to order with (the foam and gasket SVGs for Yushakobo's laser cutting service) and the outlines
   to load into KiCad's Edge.Cuts.
 
